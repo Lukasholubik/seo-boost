@@ -59,6 +59,19 @@ class SEOB_Admin {
 			'nonce'   => wp_create_nonce( 'seob_admin_nonce' ),
 		];
 
+		if ( 'seo-boost_page_seob-settings' === $hook ) {
+			wp_enqueue_script(
+				'seob-settings',
+				SEOB_PLUGIN_URL . 'assets/admin/js/settings.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-settings', 'seobData', $shared_data );
+
+			return;
+		}
+
 		if ( 'seo-boost_page_seob-redirects' === $hook ) {
 			wp_enqueue_script(
 				'seob-redirects',

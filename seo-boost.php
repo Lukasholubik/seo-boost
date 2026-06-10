@@ -55,6 +55,7 @@ $seob_files = [
 	'includes/Audit/Ajax.php',
 	'includes/Redirects/RedirectManager.php',
 	'includes/Redirects/Ajax.php',
+	'includes/Admin/SettingsAjax.php',
 	'includes/Plugin.php',
 ];
 

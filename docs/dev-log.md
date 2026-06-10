@@ -5,6 +5,31 @@
 
 ---
 
+## Záznamy
+
+### 2026-06-10 – Stránka Nastavení (fáze 1 MVP)
+
+**Co:**
+- `templates/admin/page-settings.php` – přepsána z placeholderu na plnohodnotný formulář se třemi sekcemi:
+  - **Obecné**: zapnutí/vypnutí modulů Audit Dashboard a Redirect Manager, debug log, smazání dat při odinstalaci
+  - **Audit Dashboard**: velikost dávky scanu (1-100), hranice thin content (50-2000 slov), checkbox pro noční cron (zatím bez funkce, jen se ukládá pro budoucí verzi)
+  - **Přesměrování**: zapnutí 404 logu, retence logu (1-365 dní)
+- `includes/Admin/SettingsAjax.php` (nová třída `SEOB_Settings_Ajax`) – AJAX handler `wp_ajax_seob_save_settings`, ukládá všechny tři skupiny nastavení přes `SEOB_Settings::update()`, čísla ořezává (`int_field()`) na povolený rozsah, checkboxy normalizuje na 0/1 (`bool_field()`)
+- `assets/admin/js/settings.js` – odešle formulář přes `FormData` + `fetch`, doplní nezaškrtnuté checkboxy jako `'0'` (FormData je jinak vynechá), zobrazí stav uložení
+- `includes/Admin/Admin.php` – `enqueue_assets()` nyní pro hook `seo-boost_page_seob-settings` načte `settings.js` a lokalizuje `seobData` (ajaxUrl + nonce)
+- `seo-boost.php` – `includes/Admin/SettingsAjax.php` přidán do `$seob_files`
+- `includes/Plugin.php` – `new SEOB_Settings_Ajax()` instancován vždy (není vázáno na moduly, protože stránka Nastavení musí fungovat i pro jejich zapnutí/vypnutí)
+
+**Proč:** Pokračování fáze 1 MVP („tak pokračuj v dalších nastaveních“) – Audit Dashboard a Redirect Manager mají settings klíče (`batch_size`, `thin_content_words`, `log_404`, `log_retention_days`, `cron_enabled`, `modules.*`), ale dosud nešly editovat z UI.
+
+**Test:** `php -l` na všech upravených/nových souborech bez chyb. Logika `save_settings()` (přes reflection na `bool_field`/`int_field`) otestována přes wp-cli proti živé DB – uloženy hraniční hodnoty (`batch_size=500→100`, `thin_content_words=10→50`, `log_retention_days=0→1`), ořezání funguje správně, hodnoty se po zápisu korektně načtou zpět. Po testu vráceny původní hodnoty nastavení.
+
+**Bezpečnostní audit:** `check_ajax_referer('seob_admin_nonce', 'nonce')` + `current_user_can('manage_options')` v `save_settings()`. Všechny vstupy procházejí `absint()`/bool normalizací, žádné přímé SQL dotazy. Šablona escapuje výstupy přes `esc_html()`/`esc_attr()`/`checked()`.
+
+**Pozor na:** `cron_enabled` se ukládá, ale automatický noční scan zatím není implementován (viz předchozí záznam).
+
+---
+
 ## Workflow spolupráce
 
 ### Git & verzování

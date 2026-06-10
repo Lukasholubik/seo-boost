@@ -23,6 +23,7 @@ class SEOB_Plugin {
 		load_plugin_textdomain( 'seo-boost', false, dirname( plugin_basename( SEOB_PLUGIN_FILE ) ) . '/languages' );
 
 		new SEOB_Admin();
+		new SEOB_Settings_Ajax();
 
 		$modules = SEOB_Settings::get( SEOB_Settings::GENERAL )['modules'];
 
