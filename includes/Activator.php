@@ -19,6 +19,7 @@ class SEOB_Activator {
 
 	public static function deactivate(): void {
 		// Tabulky a nastavení zůstávají – mažou se až v uninstall.php (pokud je delete_on_uninstall zapnuto).
+		wp_clear_scheduled_hook( SEOB_Redirect_Manager::CRON_HOOK );
 	}
 
 	private static function create_tables(): void {

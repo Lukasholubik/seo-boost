@@ -23,5 +23,16 @@ class SEOB_Plugin {
 		load_plugin_textdomain( 'seo-boost', false, dirname( plugin_basename( SEOB_PLUGIN_FILE ) ) . '/languages' );
 
 		new SEOB_Admin();
+
+		$modules = SEOB_Settings::get( SEOB_Settings::GENERAL )['modules'];
+
+		if ( ! empty( $modules['audit'] ) ) {
+			new SEOB_Audit_Ajax();
+		}
+
+		if ( ! empty( $modules['redirects'] ) ) {
+			new SEOB_Redirects_Ajax();
+			new SEOB_Redirect_Manager();
+		}
 	}
 }

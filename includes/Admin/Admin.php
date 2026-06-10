@@ -53,6 +53,35 @@ class SEOB_Admin {
 			[],
 			SEOB_VERSION
 		);
+
+		$shared_data = [
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( 'seob_admin_nonce' ),
+		];
+
+		if ( 'seo-boost_page_seob-redirects' === $hook ) {
+			wp_enqueue_script(
+				'seob-redirects',
+				SEOB_PLUGIN_URL . 'assets/admin/js/redirects.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-redirects', 'seobData', $shared_data );
+
+			return;
+		}
+
+		if ( 'toplevel_page_' . self::MENU_SLUG === $hook ) {
+			wp_enqueue_script(
+				'seob-audit-dashboard',
+				SEOB_PLUGIN_URL . 'assets/admin/js/audit-dashboard.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-audit-dashboard', 'seobData', $shared_data );
+		}
 	}
 
 	public function page_dashboard(): void {

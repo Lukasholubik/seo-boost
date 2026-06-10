@@ -49,6 +49,12 @@ $seob_files = [
 	'includes/Database/Database.php',
 	'includes/Activator.php',
 	'includes/Admin/Admin.php',
+	'includes/Audit/PixelWidth.php',
+	'includes/Audit/Scanner.php',
+	'includes/Audit/ScanRunner.php',
+	'includes/Audit/Ajax.php',
+	'includes/Redirects/RedirectManager.php',
+	'includes/Redirects/Ajax.php',
 	'includes/Plugin.php',
 ];
 

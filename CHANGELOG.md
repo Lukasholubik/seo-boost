@@ -3,6 +3,16 @@
 Všechny výrazné změny jsou dokumentovány v tomto souboru.
 Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
 
+## [Unreleased]
+
+### Přidáno
+- Audit Dashboard: scan na vyžádání (dávkové zpracování s progress barem), skóre 0–100,
+  kontroly title/description (chybí, délka v px, duplicity), H1/hierarchie nadpisů,
+  alt texty obrázků, schema, noindex, thin content, focus keyword
+- Inline editace SERP title/description s živým pixelovým náhledem a uložením do Rank Math meta
+- Redirect Manager: log 404 požadavků, vytvoření 301 přesměrování jedním klikem,
+  cache mapy přesměrování, denní úklid starých 404 záznamů
+
 ## [0.1.0] – 2026-06-10
 
 ### Přidáno

@@ -76,6 +76,35 @@ Před každým `git push` automaticky provedu kontrolu:
 
 ## Záznamy
 
+### 2026-06-10 – Audit Dashboard scanner + Redirect Manager (fáze 1 MVP)
+
+**Soubory:**
+- `includes/Audit/PixelWidth.php` – odhad šířky textu v px (Arial 14px) pro SERP náhled
+- `includes/Audit/Scanner.php` – `SEOB_Audit_Scanner::scan_post()` – kontroly title/description (chybí, délka v px), H1 (chybí/duplicitní), hierarchie nadpisů, alt texty obrázků (chybí/generické), schema (Rank Math rich snippet), noindex, thin content, focus keyword; čte obsah z `_elementor_data` (rekurzivní průchod widgety) nebo z `the_content` (DOMDocument fallback)
+- `includes/Audit/ScanRunner.php` – `start_scan()` založí `scan_runs` + frontu post ID v transientu, `process_batch()` zpracuje dávku (`seob_audit_settings.batch_size`), `finalize_scan()` dopočítá duplicity title/description napříč webem a průměrné skóre
+- `includes/Audit/Ajax.php` – `seob_scan_start`, `seob_scan_batch`, `seob_scan_results`, `seob_save_meta` (zápis do `rank_math_title`/`rank_math_description`)
+- `includes/Redirects/RedirectManager.php` – `template_redirect` hook: aplikuje 301 z `seo_booster_links` (mapa cachovaná 12h v transientu `seob_redirects_map`), jinak loguje 404 (`hits_404`, `last_checked`); denní cron `seob_redirects_cleanup` maže staré 404 záznamy dle `log_retention_days`
+- `includes/Redirects/Ajax.php` – `seob_redirect_list`, `seob_redirect_save`, `seob_redirect_delete`
+- `templates/admin/page-dashboard.php` + `assets/admin/js/audit-dashboard.js` – tabulka výsledků, spuštění scanu s progress barem, filtr dle závažnosti/hledání, inline editace title/description s živým SERP náhledem a pixelovým měřičem
+- `templates/admin/page-redirects.php` + `assets/admin/js/redirects.js` – přehled aktivních přesměrování + 404 logu, vytvoření 301 jedním klikem
+- `assets/admin/css/admin.css` – ručně psané CSS (Tailwind build zatím neproveden, viz "Pozor na" níže)
+- `includes/Plugin.php` – inicializace nových modulů dle `seob_general_settings.modules`
+- `includes/Activator.php` – `deactivate()` nově maže naplánovaný cron
+
+**Co bylo uděláno:** Implementována fáze 1 MVP – funkční SEO Audit Dashboard (scan na vyžádání, skóre 0–100, nálezy s prioritou, inline oprava title/description s SERP náhledem) a Redirect Manager (404 log + vytvoření 301 jedním klikem, ochrana proti open redirectu přes `wp_validate_redirect`/`wp_safe_redirect`).
+
+**Proč:** Dle zadávacího dokumentu `SEO_Booster_Pro_Audit_Dashboard_a_nove_moduly.md`, fáze 1 (Audit Dashboard + Redirect Manager + SERP náhled) – jádro produktu.
+
+**Otestováno:** Scan spuštěn přes `wp eval-file` proti živé DB (12 publikovaných URL, průměrné skóre 71/100), 404 logování a vytvoření/aplikace přesměrování ověřeno včetně odmítnutí cizí domény jako cíle.
+
+**Bezpečnostní audit:** Všechny AJAX endpointy mají `check_ajax_referer('seob_admin_nonce')` + `current_user_can('manage_options')` (zápis meta navíc `edit_post`). SQL přes `$wpdb->prepare()`/`insert`/`update`/`delete`. Výstup v JS přes `textContent`, v `redirects.js` přes `escapeHtml()`. Cíl přesměrování validován `wp_validate_redirect()` (zabránění open redirectu), aplikace přes `wp_safe_redirect()`.
+
+**Pozor na:**
+- `assets/admin/css/admin.css` je teď ručně psané CSS (ne Tailwind build) – po `npm install && npm run build:css` je potřeba sloučit/nahradit utility třídami dle `tailwind.config.js`.
+- AI návrhy (fronta `seo_booster_ai_queue`) zatím nejsou implementované – inline editor zatím jen pro ruční úpravu title/description.
+- Kontrola broken links (externí 4xx/5xx), JSON-LD validace a SERP náhled v rozbalovacím editoru pro obrázky/alt zatím nejsou – plánováno v dalších iteracích fáze 1/2.
+- Scan zpracovává `post` a `page` (publikované); cron/automatický noční scan zatím není naplánován (`seob_audit_settings.cron_enabled` se zatím nevyhodnocuje).
+
 ### 2026-06-10 – Založení pluginu, kostra + git/GitHub setup
 
 **Soubory:** celá struktura `wp-content/plugins/seo-boost/`
