@@ -1,0 +1,13 @@
+{
+  "name": "seo-boost",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Build nástroje pro SEO Booster Pro (Tailwind CSS pro admin UI)",
+  "scripts": {
+    "build:css": "tailwindcss -i ./assets/src/admin.css -o ./assets/admin/css/admin.css --minify",
+    "watch:css": "tailwindcss -i ./assets/src/admin.css -o ./assets/admin/css/admin.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
