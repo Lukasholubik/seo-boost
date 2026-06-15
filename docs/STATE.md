@@ -5,29 +5,25 @@
 
 ---
 
-## 🟢 ZAČNI ZDE – konec session 2026-06-12
+## 🟢 ZAČNI ZDE – konec session 2026-06-15
 
-**Co je hotovo a uloženo na disk:** AI schvalovací fronta (modul `ai-queue`)
-– kompletně implementováno, `php -l` čisté, PHPUnit **28/28 OK**, wp-cli
-smoke test ověřen a uklizen. Vše popsáno v sekci "✅ Nový modul „AI
-schvalovací fronta"..." níže a v `docs/dev-log.md`/`docs/modules/ai-queue.md`.
+**Git stav:** Celý dlouho narostlý balík (Stav systému/ModuleManager,
+Chytrá indexace, GSC insights, PDF redesign, schema overrides, scan
+history, AI schvalovací fronta, Composer/PHPUnit) byl po krátkém
+bezpečnostním review (zaměřeno na nové AJAX endpointy – AiQueue, SmartIndexing,
+Status, Pdf, SettingsAjax: nonce + `manage_options`/`edit_post` capability
+checks, sanitizace, `textContent` v JS, AES-256-CBC pro API klíč – beze
+zjištění) commitnut a pushnut na `feature/audit-dashboard-redirects`
+(commit `d471fd6`). **`main` nedotčen, branch nemergována.**
 
-**Co zbývá (další krok = bod D níže):** Otestovat v prohlížeči – vyžaduje od
-uživatele free API klíč (Gemini/Groq, návod v `docs/modules/ai-queue.md`):
-nastavení AI asistenta, tlačítka v Audit Dashboardu, stránka AI fronta,
-health check.
-
-**Git stav – DŮLEŽITÉ:** Vše je jen **uloženo na disk, NIC není
-commitnuté ani pushnuté**. Branch `feature/audit-dashboard-redirects` má
-dlouho narostlý balík nepushnutých změn (AI fronta + všechny moduly z
-předchozích session – Chytrá indexace, PDF redesign, GSC insights, Composer/
-PHPUnit, Stav systému...). Commit/push proběhne až na explicitní pokyn
-uživatele ("push") – pak nejdřív bezpečnostní audit dle
-`docs/dev-log.md`/[[feedback-git-workflow]].
+**Co zbývá (další krok = bod D níže):** Otestovat AI schvalovací frontu
+v prohlížeči – vyžaduje od uživatele free API klíč (Gemini/Groq, návod v
+`docs/modules/ai-queue.md`): nastavení AI asistenta, tlačítka v Audit
+Dashboardu, stránka AI fronta, health check.
 
 **Jak pokračovat příští session:** Přečíst tento soubor (hotovo automaticky),
 zeptat se uživatele, jestli už má API klíč na test AI fronty (bod D), nebo
-zda chce rovnou commit/push celého balíku.
+zda chce probrat jiný bod z "Další krok" (1-3).
 
 ---
 
@@ -121,8 +117,8 @@ splňuje minimální počet slov (`thin_content` nález ze Scanner.php), dřív 
 řádku.
 
 Detaily a ověření (wp-cli, php -l) viz `docs/dev-log.md` (záznam "Schéma „běžná stránka“ přebíjí
-Rank Math + sloupec „Obsah“..."). `SEOB_VERSION` 0.1.6 → 0.1.7. **Push zatím ne** (čeká na pokyn
-uživatele).
+Rank Math + sloupec „Obsah“..."). `SEOB_VERSION` 0.1.6 → 0.1.7. Pushnuto
+2026-06-15 (commit `d471fd6`, viz sekce "ZAČNI ZDE" výše).
 
 ---
 
@@ -135,11 +131,12 @@ Detaily viz `docs/dev-log.md` (záznamy "POKRAČOVÁNÍ 1-4"). Stručně, v poř
 3. **Historie scanů / porovnání verzí** – HOTOVO, ale NEOTESTOVÁNO V PROHLÍŽEČI (POKRAČOVÁNÍ 6): backend (`ScanRunner::get_scan_history()`, AJAX `seob_scan_history` v `Audit/Ajax.php`) i frontend (`<select id="seob-scan-history">` v `page-dashboard.php`, `loadHistory()` + `change` listener + CSS v `audit-dashboard.js`/`admin.css`) jsou hotové, uložené a `get_scan_history()` ověřeno přes wp-cli (vrací 14 scanů). Zbývá ověřit v reálném prohlížeči: dropdown `#seob-scan-history` se naplní při načtení dashboardu a `change` přepne `loadResults(scanId)` na zvolený scan.
 4. ~~**"Už opraveno od minulého scanu"**~~ – HOTOVO (2026-06-11): `AuditScanRunner::get_results()` počítá `resolved_issues`/`resolved_total` diffem proti předchozímu dokončenému scanu, dashboard zobrazuje sloupec „Od minula“ + souhrn. Zatím netestováno v prohlížeči (potřeba 2+ dokončené scany).
 5. ~~**Sitemapa vs. kategorie pro výchozí schéma**~~ – HOTOVO (D1, 2026-06-11): "Výchozí schéma podle typu obsahu" (post type) teď plně funguje vedle kategorií, včetně volby "Běžná stránka" (`'off'`), a má reálný efekt na výstup Rank Math – viz sekce "D1 + D2" výše.
-6. **Bezpečnostní audit + push** – povinný krok před mergem `feature/audit-dashboard-redirects` do `main`.
-   - ~~Bezpečnostní audit~~ – HOTOVO (2026-06-11): zkontrolováno všech 16 AJAX endpointů
-     (nonce + capability + sanitizace) a admin JS s `innerHTML` (escapování/textContent).
-     Žádné problémy nenalezeny, viz `docs/dev-log.md`.
-   - **Push do `main` ČEKÁ** na explicitní pokyn uživatele ("push").
+6. ~~**Bezpečnostní audit + push**~~ – HOTOVO (2026-06-11 a 2026-06-15): zkontrolováno všech
+   AJAX endpointů (nonce + capability + sanitizace), admin JS s `innerHTML`
+   (escapování/textContent) a nově i AiQueue/SmartIndexing/Status/Pdf/SettingsAjax.
+   Žádné problémy nenalezeny, viz `docs/dev-log.md`. Pushnuto na
+   `feature/audit-dashboard-redirects` (commit `d471fd6`). **Merge do `main`
+   ještě neproběhl** – čeká na pokyn uživatele.
 
 ## Hotovo (2026-06-10)
 
@@ -278,7 +275,7 @@ pomocí AI“ / „Navrhnout alt texty obrázků“ v Audit Dashboardu, health c
 testovací data po sobě uklizena. Detaily v `docs/dev-log.md` (záznam "Nový
 modul AI schvalovací fronta...") a `docs/modules/ai-queue.md`.
 
-**Push zatím ne** (čeká na pokyn uživatele).
+Pushnuto 2026-06-15 (commit `d471fd6`, viz sekce "ZAČNI ZDE" výše).
 
 ## Další krok
 

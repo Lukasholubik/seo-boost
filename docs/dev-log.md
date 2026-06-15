@@ -7,6 +7,35 @@
 
 ## Záznamy
 
+### 2026-06-15 – Bezpečnostní review nových AJAX endpointů + commit/push celého balíku
+
+Uživatel požádal o commit/push dlouho narostlého balíku (vše od session
+2026-06-11/12 – ModuleManager/Stav systému, Chytrá indexace, GSC insights,
+PDF redesign, schema overrides, scan history, AI schvalovací fronta,
+Composer/PHPUnit), aniž by měl API klíč na test bodu D.
+
+Před pushem proběhlo bezpečnostní review nově přidaných AJAX endpointů,
+které ještě nebyly v auditu z 2026-06-11 (ten řešil jen audit/redirects/pdf
+v1): `AiQueue/Ajax.php`, `SmartIndexing/Ajax.php`, `Health/StatusAjax.php`,
+`Pdf/Ajax.php`, `Admin/SettingsAjax.php` (nové `save_pdf_settings`/
+`save_ai_settings`). Všechny endpointy mají `check_ajax_referer` +
+`current_user_can('manage_options')` (resp. `edit_post` pro AI suggest/
+approve na konkrétním postu), vstupy sanitizované (`absint`/`sanitize_key`/
+`sanitize_text_field`/`esc_url_raw`/`wp_kses_post`), SQL přes `$wpdb->prepare`
+(jen statické table-name konstanty interpolovány). Nová admin JS
+(`ai-queue.js`, `smart-indexing.js`, `status-page.js`, `report.js`,
+`schema-defaults.js`, ...) používá `innerHTML` jen pro statické řetězce,
+dynamická data (object_title, suggestion, current_value...) přes
+`textContent`. API klíč AI providera šifrován AES-256-CBC
+(`SEOB_AiQueue_Crypt`, klíč odvozený z `wp_salt('auth')`). Žádné problémy
+nenalezeny.
+
+Commit `d471fd6` na `feature/audit-dashboard-redirects`, pushnuto na
+`origin`. **`main` nedotčen, branch nemergována** – merge čeká na další
+pokyn uživatele.
+
+---
+
 ### 2026-06-12 – Nový modul "AI schvalovací fronta" implementováno
 
 Dle master zadání (sekce 2 a 5: "AI nikdy neukládá automaticky" + "API klíče
