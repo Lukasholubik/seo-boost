@@ -15,6 +15,7 @@ class SEOB_Settings {
 	const PDF            = 'seob_pdf_settings';
 	const SMART_INDEXING = 'seob_smart_indexing_settings';
 	const AI             = 'seob_ai_settings';
+	const PAGESPEED      = 'seob_pagespeed_settings';
 
 	/**
 	 * Výchozí hodnoty pro jednotlivé option klíče.
@@ -32,6 +33,7 @@ class SEOB_Settings {
 						'smart-indexing' => 0,
 						'gsc-insights'   => 1,
 						'ai-queue'       => 0,
+						'pagespeed'      => 0,
 					],
 				];
 
@@ -58,6 +60,12 @@ class SEOB_Settings {
 					'endpoint'    => '',
 					'model'       => '',
 					'max_tokens'  => 300,
+					'api_key_enc' => '',
+				];
+
+			case self::PAGESPEED:
+				return [
+					'enabled'     => 0,
 					'api_key_enc' => '',
 				];
 

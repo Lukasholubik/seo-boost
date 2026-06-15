@@ -7,6 +7,343 @@
 
 ## Záznamy
 
+### 2026-06-15 – PageSpeed Insights: souhrnný přehled celého webu (mobil/desktop, průměr přes všechny typy obsahu)
+
+Uživatel chtěl nad jednotlivými skupinami podle typu obsahu i jeden
+celkový "souhrnný report" rychlosti webu (mobil/PC) – aby šlo na první
+pohled vidět, jak na tom web je celkově, vč. trendu oproti minulému běhu.
+
+- **`includes/PageSpeed/ScanRunner.php`**: nová veřejná čistá metoda
+  `compute_overall_scores( array $rows ): array` – pro danou strategii
+  (mobil/desktop) spočítá vážený průměr (váha = `sample_size`) přes
+  `performance_avg`, `accessibility_avg`, `best_practices_avg`, `seo_avg`
+  ze všech `psi_summary` řádků daného běhu. `get_results()` nově vrací
+  klíč `overall` => `['mobile' => [...,'deltas'=>...], 'desktop' => [...]]`,
+  kde `deltas` se počítá stejnou `compute_deltas()` funkcí jako u
+  jednotlivých skupin (porovnání s předchozím dokončeným během).
+- **`templates/admin/page-pagespeed.php`**: nový kontejner
+  `#seob-psi-overall` (nad `#seob-psi-results`) + nová šablona
+  `#seob-psi-overall-template` – karta "Celkový přehled webu (průměr ze
+  všech typů obsahu)" se stejnými 4 skóre × mobil/desktop jako u skupin.
+- **`assets/admin/js/pagespeed.js`**: vytažena společná funkce
+  `applyStrategyScores()` (dřív duplikovaná logika v `renderGroups`), nová
+  `renderOverall(overall)` – naplní `#seob-psi-overall-template` daty
+  z `result.overall`. Voláno z `loadResults()` před `renderGroups()`.
+- **`assets/admin/css/admin.css`**: `.seob-psi-overall` – zvýrazněná karta
+  (modrý levý border), aby byla vizuálně odlišená od skupin podle typu
+  obsahu.
+- `composer test` 38/38 OK, `php -l` OK na všech upravených PHP souborech.
+- Poznámka: na `.local` doméně nejsou žádná validní skóre (viz předchozí
+  záznam o `FAILED_DOCUMENT_REQUEST`), takže přehled se reálně naplní až
+  na produkci / přes tunel.
+
+### 2026-06-15 – Audit Dashboard: oprava skóre skupiny (chybné sčítání jako string) + popis konkrétních zlepšení/zhoršení u trendu
+
+Po zapnutí trendů se v UI objevila u skóre skupiny absurdní čísla
+(`2348275025`, `1.159191919191919e+149` apod.) místo skóre 0-100.
+
+- **Příčina**: `row.score` chodí z DB jako string (`wpdb` ARRAY_A). V
+  `avgScore()` se `acc + row.score` chovalo jako konkatenace stringů
+  (`0 + "97"` → `"097"`), takže `sum` byl po průchodu všemi řádky obrovský
+  string číslic, který `Math.round()` přečetl jako vědecký zápis.
+- **Oprava**: `loadResults()` nyní při načtení výsledků převede
+  `row.score` a `row.score_delta` na `Number` (`currentRows = rows.map(...)`).
+  `avgScore()` i porovnání `row.score >= 80` pak počítají správně.
+
+Zároveň – uživatel chtěl u trendu (▲/▼) vědět, **v čem konkrétně** se
+skóre zlepšilo/zhoršilo, a aby bylo jasné, že číslo ve skupině je "SEO
+skóre":
+
+- `AuditScanRunner.php::get_results()`: nově počítá i `row['new_issues']`
+  (nálezy, které se objevily oproti minulému scanu – "zhoršení"), navíc
+  k existujícímu `resolved_issues` ("zlepšení"). Na úrovni skupiny agreguje
+  `group_issue_changes[object_type] = ['resolved' => [typ => počet], 'new' => [typ => počet]]`
+  a vrací v `summary`.
+- `audit-dashboard.js`:
+  - Nové `rowIssueChangeTooltip(row)` a `groupIssueChangeTooltip(changes)` –
+    sestaví text tooltipu "Zlepšeno (opraveno): ... / Zhoršeno (nové
+    nálezy): ...".
+  - Nové `createScoreDeltaEl(delta, tooltip)` (DOM element, bezpečné
+    `title`) nahradilo `insertAdjacentHTML` u skóre skupiny i jednotlivé
+    stránky – trend `▲/▼` má teď tooltip s konkrétním důvodem.
+  - Hlavička skupiny má nový popisek `.seob-group-score-label` = "SEO
+    skóre" před badge se skóre.
+- `page-dashboard.php` / `admin.css`: nový `<span class="seob-group-score-label">`
+  v `#seob-group-template` + styl.
+
+`composer test` **38/38 OK**. wp-cli ověřeno na scanu `#26`: `page` skupina
+má `group_score_deltas.page = -2` a `group_issue_changes.page.new.description_missing = 1`
+(stránka #828, `score_delta=-15`, `new_issues=["description_missing"]`) –
+tooltip správně ukáže "Zhoršeno: description_missing". `slovicek-pojmu` má
+`resolved.thin_content = 1` (stránka #1306, `score_delta=+7`).
+
+---
+
+### 2026-06-15 – Audit Dashboard: trend skóre (celkově, po kategoriích, po stránkách) oproti minulému scanu
+
+Uživatel chtěl vidět, jestli se situace SEO zlepšuje – hodnocení/trend i na
+úrovni kategorie (skupiny podle typu obsahu) a u jednotlivých stránek
+oproti minulému auditu.
+
+- `AuditScanRunner.php`:
+  - Přejmenováno/rozšířeno `get_previous_issue_types()` → 
+    `get_previous_scan_data()` – z posledního dokončeného scanu před daným
+    `$scan_id` vrátí mapu `object_id => [typy nálezů]` (jako dřív, pro
+    "opraveno od minula"), nově i mapu `object_id => skóre`, mapu
+    `object_type => průměrné skóre` a celkové `score_avg` minulého scanu.
+  - `get_results()`: každý řádek má nově `score_delta` (aktuální skóre minus
+    skóre stejné stránky v minulém scanu, `null` pokud stránka v minulém
+    scanu nebyla). Summary má nově `score_delta` (celkové skóre webu vs.
+    minulý scan) a `group_score_deltas` (mapa `object_type => delta`
+    průměrného skóre kategorie vs. minulý scan; chybí, pokud daný typ obsahu
+    v minulém scanu nebyl – např. nová kategorie "Slovíček pojmů").
+- `audit-dashboard.js`:
+  - Nová helper funkce `scoreDeltaHtml(delta)` – vrátí `▲ +N` (zeleně) /
+    `▼ -N` (červeně) / nic (pokud `0`/`null`).
+  - Celkové skóre webu (`renderSummary`), skóre skupiny (`buildGroup`) i
+    skóre jednotlivé stránky (`buildRow`) nyní zobrazují trend vedle
+    skóre badge. Skupinový trend čte `currentSummary.group_score_deltas`
+    (nová proměnná `currentSummary`, uložená v `loadResults()`).
+- `admin.css`: nové styly `.seob-score-delta`, `.seob-score-delta-up`
+  (zelená), `.seob-score-delta-down` (červená).
+
+`composer test` **38/38 OK**. wp-cli ověřeno na scanu `#25` vs. předchozímu
+scanu: celkové `score_delta = 12`, `group_score_deltas` = `page: 0, post: 0`
+(kategorie "Slovíček pojmů" v minulém scanu nebyla, takže bez trendu – první
+měření). Jednotlivé stránky mají `score_delta` (0 v tomto případě, skóre se
+nezměnilo).
+
+---
+
+### 2026-06-15 – Audit scan: oprava kontroly obsahu (počet slov = 0) u custom post typů bez `post_content` (Slovíček pojmů)
+
+Uživatel upozornil, že u "Slovíček pojmů" kontrola obsahu (počet slov)
+ukazovala všude 0 → falešné "thin_content" nálezy u všech 75 položek.
+Příčina: JetEngine custom post typ neukládá obsah do `post_content` ani
+`_elementor_data`, ale do vlastních meta polí (`kratka_definice`,
+`definice_dlouha`, `vzorec`, `sine_stranky`, `slabe_mista`, ...).
+
+- `Scanner.php`:
+  - `extract_from_html()` přejmenováno/upraveno – nyní přebírá přímo
+    `string $raw_content` (dřív `WP_Post`), aby šlo parsovat i obsah
+    poskládaný z meta polí.
+  - `extract_content_data()`: pokud post nemá `_elementor_data` ani
+    neprázdný `post_content`, použije nově `collect_meta_content()`.
+  - Nová `collect_meta_content( WP_Post $post ): string` – projde
+    `get_post_meta($post->ID)`, vynechá interní meta (klíče začínající `_`)
+    a meta SEO pluginu (`rank_math_*`), zbylé textové (neserializované,
+    nečíselné) hodnoty spojí do náhradního HTML → počet slov/nadpisy/obrázky
+    se počítají stejně jako u klasického obsahu. Funguje obecně pro
+    jakýkoli custom post typ s obsahem v meta polích, ne jen pro "Slovíček
+    pojmů".
+
+`composer test` **38/38 OK**. wp-cli ověřeno na konkrétní položce (ID 2042,
+"CTOR"): dřív `word_count=0` → nyní `248 slov` (skóre 93, `thin_content`
+warning je teď legitimní, ne falešný nález z chybějícího obsahu). Spuštěn
+nový scan `#26` (87 položek) pro přepočet všech "Slovíček pojmů" – výsledek
+ověřen v dalším kroku.
+
+---
+
+### 2026-06-15 – Audit scan: dynamické post typy podle webu (vč. Slovíček pojmů), vyloučení builder šablon
+
+Uživatel chtěl do auditu zahrnout i další typy obsahu, ne jen
+`post`/`page` – konkrétně zmínil "slovníček pojmů". Zároveň jsme zjistili,
+že web má registrované i Elementor/JetEngine builder/template post typy
+(`jet-popup`, `e-floating-buttons`, `elementor_library`, `jet-theme-core`),
+které do auditu nepatří.
+
+- `AuditScanRunner.php`:
+  - Nová konstanta `EXCLUDED_POST_TYPES` (`attachment`, `jet-popup`,
+    `e-floating-buttons`, `elementor_library`, `jet-theme-core`).
+  - Nová statická metoda `get_audit_post_types()` – vrátí všechny veřejné
+    post typy webu (`get_post_types(['public'=>true])`) minus vyloučené,
+    a jen ty, které mají alespoň 1 publikovanou položku
+    (`wp_count_posts()->publish > 0`). Zjišťuje se dynamicky podle obsahu
+    konkrétního webu, žádné natvrdo zadané `post`/`page`.
+  - `start_scan()` teď používá `self::get_audit_post_types()` místo
+    natvrdo `['post', 'page']`.
+- `Admin.php`: `postTypeLabels` v `seobData` pro audit dashboard se nyní
+  generují dynamicky novou metodou `get_audit_post_type_labels()` –
+  projde `SEOB_Audit_ScanRunner::get_audit_post_types()` a pro každý
+  doplní `get_post_type_object($type)->labels->name`.
+- Žádné změny šablony/JS – nové skupiny (např. "Slovíček pojmů") vznikají
+  automaticky přes existující `renderRows()`/`buildGroup()` logiku, jen
+  podle reálných `object_type` z výsledků a `postTypeLabels`.
+
+`composer test` **38/38 OK**. wp-cli ověřeno: `get_audit_post_types()` na
+tomto webu vrací `['post', 'page', 'slovicek-pojmu']` (87 publikovaných
+položek celkem – 4 + 8 + 75), nový scan zařadil do fronty všech 87 URL.
+
+---
+
+### 2026-06-15 – Audit Dashboard: výsledky seskupené podle typu obsahu (Příspěvky/Stránky)
+
+Uživatel chtěl Audit Dashboard přehlednější – na první pohled vidět, kde je
+problém (např. v "Posts"), a teprve po rozkliknutí seznam konkrétních
+stránek pod danou skupinou.
+
+- `page-dashboard.php`: plochá tabulka nahrazena `<div id="seob-groups">` +
+  novým `<template id="seob-group-template">` – každá skupina (typ obsahu)
+  má vlastní hlavičku (tlačítko) a sbalitelné tělo s vlastní tabulkou
+  (stejné sloupce jako dřív, jen per-skupina).
+- `audit-dashboard.js`:
+  - `renderRows()` teď seskupuje `currentRows` podle `row.object_type`
+    (`post`/`page`), seřadí skupiny **od nejhoršího průměrného skóre** –
+    problémová skupina je nahoře.
+  - Hlavička skupiny zobrazuje: název typu obsahu (`seobData.postTypeLabels`),
+    počet stránek, průměrné skóre (barevný badge good/mid/bad) a počty
+    kritických/varování/doporučení nálezů.
+  - Skupiny jsou collapse/expand (klik na hlavičku), stav rozbalení se
+    pamatuje v `expandedGroups` přes překreslení (filtry). Nejhorší skupina
+    je při prvním vykreslení rozbalená automaticky.
+  - `seob-gsc-hidden` toggle teď řeší `querySelectorAll` přes všechny
+    `.seob-audit-table` (jedna per skupina).
+  - Doplněno i "od minula opraveno" (`resolvedCount()`) a souhrn Search
+    Console za celou skupinu (`groupGsc()` – součet zobrazení/kliků,
+    průměrná CTR a pozice), zobrazeno v hlavičce skupiny vedle skóre.
+- `Admin.php`: do `seobData` pro audit dashboard přidáno `postTypeLabels`
+  (`post` → "Příspěvky", `page` → "Stránky", z `get_post_type_object()->labels->name`).
+- `admin.css`: nové styly `.seob-audit-group`, `.seob-group-toggle`
+  (+ `.is-expanded` šipka), `.seob-group-count*`, `.seob-empty-groups`.
+
+`composer test` **38/38 OK** (změny jen v JS/CSS/template/enqueue, žádná
+nová PHP logika). wp-cli ověřeno: poslední scan má 12 řádků – 8 `page` +
+4 `post`, labely "Stránky"/"Příspěvky" se načítají správně.
+
+---
+
+### 2026-06-15 – PageSpeed Insights: běh na pozadí (WP-Cron) + historie a porovnání skóre
+
+Uživatel chtěl, aby analýza běžela i na pozadí (nemusí čekat na stránce,
+běh se dokončí i po odchodu) a aby se uchovávaly poslední výsledky pro
+porovnání skóre před/po opravě. Implementováno:
+
+- `ScanRunner::CRON_HOOK = 'seob_psi_process_batch'` – po `start_scan()`
+  (a po každé dávce, která ještě neskončila) se naplánuje
+  `wp_schedule_single_event()`. WP-Cron callback `process_batch_cron()`
+  zpracuje 1 položku a naplánuje další, dokud běh neskončí – takže scan
+  doběhne i bez otevřené administrace (na dalším návštěvníkovi webu).
+- `process_batch()`: guard `'done' === $run->status` (stará naplánovaná
+  cron událost už nemůže znovu finalizovat hotový běh) + transientový
+  zámek `seob_psi_lock_{run_id}` (TTL 2 min) proti souběhu JS pollingu a
+  WP-Cron callbacku na stejném běhu.
+- `Activator::deactivate()` – `wp_clear_scheduled_hook( CRON_HOOK )`.
+- Historie běhů: `get_run_history()` (posledních 10 dokončených, limit
+  beze změny), nové AJAX `seob_psi_history`. Dropdown "Historie běhů" v
+  `page-pagespeed.php`, mazání teď maže vybraný běh ("Smazat vybraný běh").
+- Obnovení po reloadu: `get_active_run()` (běžící run + jeho fronta z
+  transientu), AJAX `seob_psi_active` – `pagespeed.js` při načtení stránky
+  zjistí, jestli něco běží na pozadí, a pokud ano, obnoví progress bar a
+  pokračuje v pollingu od aktuálního `done/total`.
+- Porovnání skóre: `get_results( ?run_id )` (refaktor z `get_latest_results()`)
+  dohledá předchozí dokončený běh a pro každou kombinaci typ obsahu+strategie
+  spočítá `compute_deltas()` (rozdíl 4 skóre oproti minulému běhu, čistá
+  funkce). V `page-pagespeed.php`/`admin.css` nové `.seob-psi-delta-*`
+  prvky (`+5`/`−3`/`0`, barvy zelená/červená/šedá), `seob_psi_results` nově
+  přijímá `run_id` z dropdownu historie.
+
+`tests/Unit/PageSpeed/ScanRunnerAggregationTest.php` – 3 nové testy pro
+`compute_deltas` (rozdíly, bez předchozího běhu, chybějící skóre na jedné
+straně). `composer test` **38/38 OK**. wp-cli smoke test: `get_active_run()`
+správně vrátil reálný běžící scan (#4, 33/50 → 34/50 mezi dvěma voláními,
+tedy WP-Cron na pozadí skutečně pokračuje), `get_run_history()`/`get_results()`
+vrací prázdno/`null` dokud nemáme žádný dokončený běh (čeká se na doběhnutí
+prvního běhu uživatele).
+
+---
+
+### 2026-06-15 – PageSpeed Insights: vylepšený progress bar + konfigurace API klíče
+
+Po implementaci modulu (viz záznam níže) uživatel vytvořil free PSI API
+klíč (omezený jen na „PageSpeed Insights API“) a byl uložen šifrovaně přes
+wp-cli – modul je zapnutý a health check vrací `good`.
+
+Uživatel si stěžoval, že progress bar při běhu (každý PSI dotaz trvá
+15–40 s) vypadá „seklý“, protože se mezi jednotlivými kroky dlouho nic
+neděje. Vylepšeno:
+
+- `ScanRunner::start_scan()` nově vrací i `queue` (seznam položek
+  `{object_id, object_type, url, strategy}`), `process_batch()` vrací
+  `items` (zpracované položky s `url`/`strategy`/`error`).
+- `pagespeed.js`: progress bar má při běhu animované pruhy (`is-busy`),
+  vedle něj rotující spinner, a pod ním stavový řádek "Hotovo: <url>
+  (mobil) ✓ | Testuji (5/48): <url> (desktop) … (může trvat 15–40 s)" –
+  takže je vidět konkrétní stránka/strategie, na které se právě čeká.
+- `page-pagespeed.php` – nový `#seob-psi-progress-status` řádek + spinner
+  element; `admin.css` – `@keyframes seob-progress-stripes`/`seob-spin`.
+- `docs/modules/pagespeed.md` – přepsán "Jak získat bezplatný API klíč" na
+  podrobný krok-za-krokem návod (přesně podle UI Google Cloud Console,
+  vč. "Select API restrictions"/"Application restrictions") + sekce
+  "Bezpečnost".
+
+`php -l` bez chyb, `composer test` **35/35 OK**. wp-cli ověřeno, že
+`start_scan()` vrací `queue` s 48 položkami. Reálný scan v prohlížeči ještě
+neproběhl.
+
+---
+
+### 2026-06-15 – Nový modul "PageSpeed Insights (Lighthouse)" implementováno
+
+Dle schváleného plánu (`melodic-stirring-spark.md`): doplnění auditu o reálná
+data z Google Lighthouse přes PageSpeed Insights (PSI) API v5 – bez
+headless Chrome na serveru. Modul `pagespeed` (výchozí vypnutý), pro každý
+veřejný post type s alespoň 1 publikovanou položkou vybere 5 náhodných
+publikovaných stránek, otestuje mobile+desktop, a shrne podle typu obsahu
+(průměrná skóre Performance/Accessibility/Best Practices/SEO + top 10
+nejčastějších SEO nálezů s popisem + odkazy na vzorek stránek).
+
+Implementováno (`SEOB_VERSION` 0.3.0 → 0.4.0, `SEOB_DB_VERSION` 0.4.0 →
+0.5.0):
+
+- Nové tabulky `wp_seo_booster_psi_runs/psi_results/psi_summary`
+  (`Activator::create_tables()` + `SEOB_Database::psi_*_table()`).
+- `SEOB_Settings::PAGESPEED` (`enabled`, `api_key_enc` – šifrováno přes
+  `SEOB_AiQueue_Crypt`, stejně jako u AI asistenta), nová položka v
+  `GENERAL.modules`.
+- `includes/PageSpeed/Client.php` (`SEOB_PageSpeed_Client`) –
+  `analyze()`/`parse_response()` (čistá funkce, kryto PHPUnit), volá
+  `runPagespeed` endpoint, vrací 4 skóre (0–100) + `issues` (SEO audity se
+  score < 1, vyfiltrované `notApplicable`/`informative`).
+- `includes/PageSpeed/ScanRunner.php` (`SEOB_PageSpeed_ScanRunner`) –
+  `start_scan()`/`process_batch()`/`finalize_scan()`/`get_latest_results()`/
+  `delete_run()`, agregace `aggregate_group()` (čistá funkce, kryto PHPUnit).
+  Dávkování po 1 položce (kvůli PSI free tier limitům 25k/den, 240/min a PHP
+  timeoutu), fronta v transientu (`seob_psi_queue_{run_id}`, TTL 1h),
+  historie posledních 10 běhů.
+- `includes/PageSpeed/Ajax.php` (`SEOB_PageSpeed_Ajax`) – `seob_psi_start`/
+  `_batch`/`_results`/`_delete`, stejný nonce+capability vzor jako ostatní
+  moduly.
+- `SEOB_Health_Checks::pagespeed_checks()` – critical bez API klíče, good
+  bez proběhlé analýzy, warning pokud poslední SEO skóre < 80.
+- Admin: nová stránka **SEO Booster → PageSpeed Insights** (`seob-pagespeed`,
+  `page-pagespeed.php` + `pagespeed.js` – tlačítko spuštění, progress bar,
+  karty po post type s mobile/desktop skóre, top nálezy, vzorek stránek;
+  `textContent` pro dynamická data).
+- Nastavení: sekce "PageSpeed Insights (Lighthouse)" (`page-settings.php` +
+  `save_pagespeed_settings()` v `SettingsAjax.php` + `settings.js`) – toggle
+  modulu + API klíč (placeholder `••••••••` po uložení).
+- Dokumentace `docs/modules/pagespeed.md` vč. návodu na free PSI API klíč
+  (Google Cloud Console).
+- Nové PHPUnit testy `tests/Unit/PageSpeed/ClientTest.php` +
+  `ScanRunnerAggregationTest.php` (parsing PSI odpovědi, agregace skóre a
+  common issues) – **35 testů, 111 assertions, OK**. Bootstrap doplněn o
+  globální stuby `HOUR_IN_SECONDS`, `WP_Error`, `__()`.
+
+**Ověřeno přes wp-cli** (bez reálného API klíče): aktivace modulu, existence
+3 nových tabulek, `start_scan()` vrátil `items_total = 48` (odpovídá
+6 post typům s publikovanými položkami × min(5, počet) × 2 strategie),
+`process_batch()` korektně uložil řádek s `error = "PageSpeed Insights API
+klíč není nastaven."` a `score = NULL`, health check vrátil `critical`
+(`pagespeed_configured`). Testovací run/výsledky po sobě smazány, modul
+vrácen do výchozího vypnutého stavu. `php -l` bez chyb na všech 13
+dotčených souborech.
+
+**Zbývá**: až uživatel doplní PSI API klíč (návod v `docs/modules/pagespeed.md`),
+otestovat reálný scan v prohlížeči (progress bar, výsledky).
+
+---
+
 ### 2026-06-15 – Bezpečnostní review nových AJAX endpointů + commit/push celého balíku
 
 Uživatel požádal o commit/push dlouho narostlého balíku (vše od session

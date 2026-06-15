@@ -57,6 +57,10 @@ class SEOB_Admin {
 			add_submenu_page( self::MENU_SLUG, 'AI fronta', 'AI fronta', self::CAPABILITY, 'seob-ai-queue', [ $this, 'page_ai_queue' ] );
 		}
 
+		if ( SEOB_Module_Manager::is_active( 'pagespeed' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'PageSpeed Insights', 'PageSpeed Insights', self::CAPABILITY, 'seob-pagespeed', [ $this, 'page_pagespeed' ] );
+		}
+
 		// Stav systému a Nastavení zůstávají vždy dostupné – odsud se moduly znovu zapínají.
 		add_submenu_page( self::MENU_SLUG, 'Stav systému', 'Stav systému', self::CAPABILITY, 'seob-status',   [ $this, 'page_status' ] );
 		add_submenu_page( self::MENU_SLUG, 'Nastavení',    'Nastavení',    self::CAPABILITY, 'seob-settings', [ $this, 'page_settings' ] );
@@ -145,6 +149,19 @@ class SEOB_Admin {
 			return;
 		}
 
+		if ( str_ends_with( $hook, '_page_seob-pagespeed' ) ) {
+			wp_enqueue_script(
+				'seob-pagespeed',
+				SEOB_PLUGIN_URL . 'assets/admin/js/pagespeed.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-pagespeed', 'seobData', $shared_data );
+
+			return;
+		}
+
 		if ( str_ends_with( $hook, '_page_seob-redirects' ) ) {
 			wp_enqueue_script(
 				'seob-redirects',
@@ -210,14 +227,35 @@ class SEOB_Admin {
 				array_merge(
 					$shared_data,
 					[
-						'schemaTypes'   => SEOB_Schema_Helper::TYPES,
-						'reportUrl'     => admin_url( 'admin.php?page=seob-report' ),
-						'aiQueueActive' => SEOB_Module_Manager::is_active( 'ai-queue' ),
-						'aiQueueUrl'    => admin_url( 'admin.php?page=seob-ai-queue' ),
+						'schemaTypes'    => SEOB_Schema_Helper::TYPES,
+						'reportUrl'      => admin_url( 'admin.php?page=seob-report' ),
+						'aiQueueActive'  => SEOB_Module_Manager::is_active( 'ai-queue' ),
+						'aiQueueUrl'     => admin_url( 'admin.php?page=seob-ai-queue' ),
+						'postTypeLabels' => self::get_audit_post_type_labels(),
 					]
 				)
 			);
 		}
+	}
+
+	/**
+	 * Vrátí mapu post_type => název (plurál) pro všechny post typy
+	 * zahrnuté do audit scanu na tomto webu.
+	 *
+	 * @return array<string,string>
+	 */
+	private static function get_audit_post_type_labels(): array {
+		$labels = [];
+
+		foreach ( SEOB_Audit_ScanRunner::get_audit_post_types() as $post_type ) {
+			$object = get_post_type_object( $post_type );
+
+			if ( $object ) {
+				$labels[ $post_type ] = $object->labels->name;
+			}
+		}
+
+		return $labels;
 	}
 
 	public function page_dashboard(): void {
@@ -266,6 +304,15 @@ class SEOB_Admin {
 		}
 
 		$this->render_template( 'page-ai-queue.php' );
+	}
+
+	public function page_pagespeed(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'pagespeed' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['pagespeed']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-pagespeed.php' );
 	}
 
 	public function page_pdf_settings(): void {

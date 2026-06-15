@@ -11,6 +11,7 @@ $general  = SEOB_Settings::get( SEOB_Settings::GENERAL );
 $audit    = SEOB_Settings::get( SEOB_Settings::AUDIT );
 $redirect = SEOB_Settings::get( SEOB_Settings::REDIRECT );
 $ai       = SEOB_Settings::get( SEOB_Settings::AI );
+$pagespeed = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
 ?>
 <div class="wrap seob-wrap">
 	<h1><?php esc_html_e( 'SEO Booster Pro – Nastavení', 'seo-boost' ); ?></h1>
@@ -49,6 +50,11 @@ $ai       = SEOB_Settings::get( SEOB_Settings::AI );
 					<label>
 						<input type="checkbox" name="modules_ai_queue" value="1" <?php checked( ! empty( $general['modules']['ai-queue'] ) ); ?>>
 						<?php esc_html_e( 'AI schvalovací fronta (návrhy title/description/alt textů ke schválení)', 'seo-boost' ); ?>
+					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_pagespeed" value="1" <?php checked( ! empty( $general['modules']['pagespeed'] ) ); ?>>
+						<?php esc_html_e( 'PageSpeed Insights (Lighthouse skóre a SEO doporučení pro vzorek stránek)', 'seo-boost' ); ?>
 					</label>
 				</td>
 			</tr>
@@ -164,6 +170,35 @@ $ai       = SEOB_Settings::get( SEOB_Settings::AI );
 				<th scope="row"><label for="seob-ai-api-key"><?php esc_html_e( 'API klíč', 'seo-boost' ); ?></label></th>
 				<td>
 					<input type="password" id="seob-ai-api-key" name="ai_api_key" class="regular-text" autocomplete="new-password" placeholder="<?php echo '' !== $ai['api_key_enc'] ? esc_attr__( '•••••••• (vyplňte jen pro změnu)', 'seo-boost' ) : ''; ?>">
+					<p class="description"><?php esc_html_e( 'Klíč je v databázi uložen šifrovaně. Pole ponechte prázdné, pokud nechcete uložený klíč měnit.', 'seo-boost' ); ?></p>
+				</td>
+			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'PageSpeed Insights (Lighthouse)', 'seo-boost' ); ?></h2>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: odkaz na dokumentaci modulu */
+				esc_html__( 'Vyžaduje bezplatný API klíč Google PageSpeed Insights. Návod na jeho vytvoření najdete v %s.', 'seo-boost' ),
+				'<a href="https://developers.google.com/speed/docs/insights/v5/get-started" target="_blank" rel="noopener">' . esc_html__( 'dokumentaci modulu', 'seo-boost' ) . '</a>'
+			);
+			?>
+		</p>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'PageSpeed Insights', 'seo-boost' ); ?></th>
+				<td>
+					<label>
+						<input type="checkbox" name="pagespeed_enabled" value="1" <?php checked( ! empty( $pagespeed['enabled'] ) ); ?>>
+						<?php esc_html_e( 'Zapnout analýzu PageSpeed Insights', 'seo-boost' ); ?>
+					</label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="seob-pagespeed-api-key"><?php esc_html_e( 'API klíč', 'seo-boost' ); ?></label></th>
+				<td>
+					<input type="password" id="seob-pagespeed-api-key" name="pagespeed_api_key" class="regular-text" autocomplete="new-password" placeholder="<?php echo '' !== $pagespeed['api_key_enc'] ? esc_attr__( '•••••••• (vyplňte jen pro změnu)', 'seo-boost' ) : ''; ?>">
 					<p class="description"><?php esc_html_e( 'Klíč je v databázi uložen šifrovaně. Pole ponechte prázdné, pokud nechcete uložený klíč měnit.', 'seo-boost' ); ?></p>
 				</td>
 			</tr>

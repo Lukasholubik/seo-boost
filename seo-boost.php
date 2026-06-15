@@ -16,8 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SEOB_VERSION',     '0.3.0' );
-define( 'SEOB_DB_VERSION',  '0.4.0' );
+define( 'SEOB_VERSION',     '0.4.0' );
+define( 'SEOB_DB_VERSION',  '0.5.0' );
 define( 'SEOB_PLUGIN_FILE', __FILE__ );
 define( 'SEOB_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'SEOB_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -78,6 +78,9 @@ $seob_files = [
 	'includes/AiQueue/Repository.php',
 	'includes/AiQueue/PromptBuilder.php',
 	'includes/AiQueue/Ajax.php',
+	'includes/PageSpeed/Client.php',
+	'includes/PageSpeed/ScanRunner.php',
+	'includes/PageSpeed/Ajax.php',
 	'includes/Plugin.php',
 ];
 

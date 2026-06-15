@@ -33,6 +33,7 @@ class SEOB_Activator {
 	public static function deactivate(): void {
 		// Tabulky a nastavení zůstávají – mažou se až v uninstall.php (pokud je delete_on_uninstall zapnuto).
 		wp_clear_scheduled_hook( SEOB_Redirect_Manager::CRON_HOOK );
+		wp_clear_scheduled_hook( SEOB_PageSpeed_ScanRunner::CRON_HOOK );
 	}
 
 	private static function create_tables(): void {
@@ -50,6 +51,9 @@ class SEOB_Activator {
 		$facet_rules_table   = SEOB_Database::facet_rules_table();
 		$facet_urls_table    = SEOB_Database::facet_urls_table();
 		$facet_signals_table = SEOB_Database::facet_signals_table();
+		$psi_runs_table      = SEOB_Database::psi_runs_table();
+		$psi_results_table   = SEOB_Database::psi_results_table();
+		$psi_summary_table   = SEOB_Database::psi_summary_table();
 
 		$sql = "CREATE TABLE {$audit_table} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -162,6 +166,51 @@ class SEOB_Activator {
 			inquiries INT UNSIGNED NOT NULL DEFAULT 0,
 			PRIMARY KEY  (id),
 			UNIQUE KEY uq_signal (url_hash, signal_date)
+		) {$charset_collate};
+
+		CREATE TABLE {$psi_runs_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			started_at DATETIME NOT NULL,
+			finished_at DATETIME DEFAULT NULL,
+			items_total INT UNSIGNED DEFAULT 0,
+			items_done INT UNSIGNED DEFAULT 0,
+			status VARCHAR(10) NOT NULL DEFAULT 'running',
+			PRIMARY KEY  (id)
+		) {$charset_collate};
+
+		CREATE TABLE {$psi_results_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			run_id BIGINT UNSIGNED NOT NULL,
+			object_id BIGINT UNSIGNED NOT NULL,
+			object_type VARCHAR(20) NOT NULL,
+			url VARCHAR(2083) NOT NULL,
+			strategy VARCHAR(10) NOT NULL,
+			performance_score TINYINT UNSIGNED DEFAULT NULL,
+			accessibility_score TINYINT UNSIGNED DEFAULT NULL,
+			best_practices_score TINYINT UNSIGNED DEFAULT NULL,
+			seo_score TINYINT UNSIGNED DEFAULT NULL,
+			issues_json LONGTEXT,
+			error TEXT DEFAULT NULL,
+			scanned_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY idx_run (run_id),
+			KEY idx_object (object_id, object_type, strategy)
+		) {$charset_collate};
+
+		CREATE TABLE {$psi_summary_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			run_id BIGINT UNSIGNED NOT NULL,
+			object_type VARCHAR(20) NOT NULL,
+			strategy VARCHAR(10) NOT NULL,
+			performance_avg TINYINT UNSIGNED DEFAULT NULL,
+			accessibility_avg TINYINT UNSIGNED DEFAULT NULL,
+			best_practices_avg TINYINT UNSIGNED DEFAULT NULL,
+			seo_avg TINYINT UNSIGNED DEFAULT NULL,
+			sample_size TINYINT UNSIGNED DEFAULT 0,
+			common_issues_json LONGTEXT,
+			sample_object_ids_json LONGTEXT,
+			PRIMARY KEY  (id),
+			KEY idx_run_type (run_id, object_type, strategy)
 		) {$charset_collate};";
 
 		dbDelta( $sql );

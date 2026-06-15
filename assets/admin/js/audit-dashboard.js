@@ -60,7 +60,8 @@
 	var progressFill  = document.getElementById( 'seob-progress-fill' );
 	var progressText  = document.getElementById( 'seob-progress-text' );
 	var summaryEl     = document.getElementById( 'seob-summary' );
-	var tbody         = document.getElementById( 'seob-results-body' );
+	var groupsEl      = document.getElementById( 'seob-groups' );
+	var groupTemplate = document.getElementById( 'seob-group-template' );
 	var rowTemplate   = document.getElementById( 'seob-row-template' );
 	var filterSeverity = document.getElementById( 'seob-filter-severity' );
 	var filterSearch  = document.getElementById( 'seob-filter-search' );
@@ -68,9 +69,11 @@
 	var scanDeleteBtn = document.getElementById( 'seob-scan-delete' );
 	var exportPdfLink = document.getElementById( 'seob-export-pdf' );
 	var gscNotice     = document.getElementById( 'seob-gsc-notice' );
-	var auditTable    = document.querySelector( '.seob-audit-table' );
 
-	var currentRows = [];
+	var currentRows    = [];
+	var currentSummary = null;
+	var gscAvailable   = false;
+	var expandedGroups = null;
 
 	function ajax( action, data ) {
 		var formData = new FormData();
@@ -145,6 +148,102 @@
 		return null;
 	}
 
+	function scoreDeltaHtml( delta ) {
+		if ( null === delta || undefined === delta || 0 === delta ) {
+			return '';
+		}
+
+		var cls  = delta > 0 ? 'seob-score-delta-up' : 'seob-score-delta-down';
+		var sign = delta > 0 ? '▲ +' : '▼ ';
+
+		return '<span class="seob-score-delta ' + cls + '">' + sign + delta + '</span>';
+	}
+
+	/**
+	 * Vytvoří element s trendem skóre (▲/▼ + delta) a volitelným tooltipem
+	 * popisujícím, KTERÉ konkrétní nálezy se zlepšily/zhoršily.
+	 *
+	 * @return {?Element}
+	 */
+	function createScoreDeltaEl( delta, tooltip ) {
+		if ( null === delta || undefined === delta || 0 === delta ) {
+			return null;
+		}
+
+		var span = document.createElement( 'span' );
+		span.className = 'seob-score-delta ' + ( delta > 0 ? 'seob-score-delta-up' : 'seob-score-delta-down' );
+		span.textContent = ( delta > 0 ? '▲ +' : '▼ ' ) + delta;
+
+		if ( tooltip ) {
+			span.title = tooltip;
+		}
+
+		return span;
+	}
+
+	/**
+	 * Sestaví text tooltipu pro jednu stránku – co se od minulého scanu
+	 * zlepšilo (opraveno) a co zhoršilo (nové nálezy).
+	 */
+	function rowIssueChangeTooltip( row ) {
+		var lines = [];
+
+		if ( row.resolved_issues && row.resolved_issues.length ) {
+			lines.push( 'Zlepšeno (opraveno):' );
+			row.resolved_issues.forEach( function ( type ) {
+				lines.push( '  ✓ ' + ( ISSUE_LABELS[ type ] || type ) );
+			} );
+		}
+
+		if ( row.new_issues && row.new_issues.length ) {
+			if ( lines.length ) {
+				lines.push( '' );
+			}
+			lines.push( 'Zhoršeno (nové nálezy):' );
+			row.new_issues.forEach( function ( type ) {
+				lines.push( '  ✗ ' + ( ISSUE_LABELS[ type ] || type ) );
+			} );
+		}
+
+		return lines.join( '\n' );
+	}
+
+	/**
+	 * Sestaví text tooltipu pro skupinu – souhrn opravených a nových nálezů
+	 * (s počty) napříč všemi stránkami skupiny od minulého scanu.
+	 */
+	function groupIssueChangeTooltip( changes ) {
+		if ( ! changes ) {
+			return '';
+		}
+
+		var lines    = [];
+		var resolved = changes.resolved || {};
+		var added    = changes['new'] || {};
+
+		var resolvedKeys = Object.keys( resolved );
+		var newKeys      = Object.keys( added );
+
+		if ( resolvedKeys.length ) {
+			lines.push( 'Zlepšeno (opraveno):' );
+			resolvedKeys.forEach( function ( type ) {
+				lines.push( '  ✓ ' + resolved[ type ] + '× ' + ( ISSUE_LABELS[ type ] || type ) );
+			} );
+		}
+
+		if ( newKeys.length ) {
+			if ( lines.length ) {
+				lines.push( '' );
+			}
+			lines.push( 'Zhoršeno (nové nálezy):' );
+			newKeys.forEach( function ( type ) {
+				lines.push( '  ✗ ' + added[ type ] + '× ' + ( ISSUE_LABELS[ type ] || type ) );
+			} );
+		}
+
+		return lines.join( '\n' );
+	}
+
 	function renderSummary( summary ) {
 		if ( ! summary || ! summary.id ) {
 			summaryEl.innerHTML = '';
@@ -161,7 +260,7 @@
 
 		summaryEl.innerHTML =
 			'<div class="seob-score-overview">' +
-				'<div class="seob-score-total">Celkové skóre webu: <strong>' + ( summary.score_avg ?? '–' ) + '/100</strong></div>' +
+				'<div class="seob-score-total">Celkové skóre webu: <strong>' + ( summary.score_avg ?? '–' ) + '/100</strong>' + scoreDeltaHtml( summary.score_delta ) + '</div>' +
 				'<div class="seob-score-counts">' +
 					'<span class="seob-count-critical">● ' + counts.critical + ' kritických</span>' +
 					'<span class="seob-count-warning">● ' + counts.warning + ' varování</span>' +
@@ -171,11 +270,148 @@
 			'</div>';
 	}
 
+	function postTypeLabel( type ) {
+		return ( seobData.postTypeLabels && seobData.postTypeLabels[ type ] ) || type;
+	}
+
+	function pageCountLabel( count ) {
+		if ( 1 === count ) {
+			return count + ' stránka';
+		}
+
+		if ( count >= 2 && count <= 4 ) {
+			return count + ' stránky';
+		}
+
+		return count + ' stránek';
+	}
+
+	function severityCounts( rows ) {
+		var counts = { critical: 0, warning: 0, recommendation: 0 };
+
+		rows.forEach( function ( row ) {
+			row.issues.forEach( function ( issue ) {
+				if ( counts.hasOwnProperty( issue.severity ) ) {
+					counts[ issue.severity ]++;
+				}
+			} );
+		} );
+
+		return counts;
+	}
+
+	function avgScore( rows ) {
+		if ( ! rows.length ) {
+			return null;
+		}
+
+		var sum = rows.reduce( function ( acc, row ) {
+			return acc + row.score;
+		}, 0 );
+
+		return Math.round( sum / rows.length );
+	}
+
+	function resolvedCount( rows ) {
+		return rows.reduce( function ( acc, row ) {
+			return acc + ( row.resolved_issues ? row.resolved_issues.length : 0 );
+		}, 0 );
+	}
+
+	function groupGsc( rows ) {
+		var withGsc = rows.filter( function ( row ) {
+			return !! row.gsc;
+		} );
+
+		if ( ! withGsc.length ) {
+			return null;
+		}
+
+		var impressions = 0;
+		var clicks = 0;
+		var positionSum = 0;
+
+		withGsc.forEach( function ( row ) {
+			impressions += row.gsc.impressions;
+			clicks += row.gsc.clicks;
+			positionSum += row.gsc.avg_position;
+		} );
+
+		return {
+			impressions: impressions,
+			clicks: clicks,
+			ctr: impressions > 0 ? ( clicks / impressions * 100 ) : 0,
+			avg_position: positionSum / withGsc.length
+		};
+	}
+
+	function buildGroup( type, rows ) {
+		var fragment = groupTemplate.content.cloneNode( true );
+		var toggle   = fragment.querySelector( '.seob-group-toggle' );
+		var body     = fragment.querySelector( '.seob-group-body' );
+		var rowsBody = fragment.querySelector( '.seob-group-rows' );
+
+		toggle.querySelector( '.seob-group-title' ).textContent = postTypeLabel( type );
+		toggle.querySelector( '.seob-group-count' ).textContent = pageCountLabel( rows.length );
+
+		toggle.querySelector( '.seob-group-score-label' ).textContent = 'SEO skóre';
+
+		var score = avgScore( rows );
+		var scoreBadge = toggle.querySelector( '.seob-group-score-badge' );
+		scoreBadge.textContent = null === score ? '–' : String( score );
+		if ( null !== score ) {
+			scoreBadge.classList.add( score >= 80 ? 'seob-score-good' : score >= 50 ? 'seob-score-mid' : 'seob-score-bad' );
+		}
+
+		var groupDeltas  = ( currentSummary && currentSummary.group_score_deltas ) || {};
+		var groupChanges = ( currentSummary && currentSummary.group_issue_changes ) || {};
+		var deltaEl      = createScoreDeltaEl( groupDeltas[ type ], groupIssueChangeTooltip( groupChanges[ type ] ) );
+		if ( deltaEl ) {
+			scoreBadge.insertAdjacentElement( 'afterend', deltaEl );
+		}
+
+		var counts = severityCounts( rows );
+		toggle.querySelector( '.seob-group-count-critical' ).textContent = counts.critical ? counts.critical + ' kritických' : '';
+		toggle.querySelector( '.seob-group-count-warning' ).textContent = counts.warning ? counts.warning + ' varování' : '';
+		toggle.querySelector( '.seob-group-count-recommendation' ).textContent = counts.recommendation ? counts.recommendation + ' doporučení' : '';
+
+		var resolved = resolvedCount( rows );
+		toggle.querySelector( '.seob-group-count-resolved' ).textContent = resolved ? '✓ ' + resolved + ' opraveno' : '';
+
+		var gscEl = toggle.querySelector( '.seob-group-gsc' );
+		var gsc   = gscAvailable ? groupGsc( rows ) : null;
+
+		if ( gsc ) {
+			gscEl.textContent = gsc.impressions + ' zobr. · ' + gsc.clicks + ' kliků · CTR ' + gsc.ctr.toFixed( 1 ).replace( '.', ',' ) + ' % · poz. ' + gsc.avg_position.toFixed( 1 ).replace( '.', ',' );
+		} else {
+			gscEl.textContent = '';
+		}
+
+		rows.forEach( function ( row, index ) {
+			rowsBody.appendChild( buildRow( row, index ) );
+		} );
+
+		var expanded = !! expandedGroups[ type ];
+		body.hidden = ! expanded;
+		toggle.setAttribute( 'aria-expanded', expanded ? 'true' : 'false' );
+		toggle.classList.toggle( 'is-expanded', expanded );
+
+		toggle.addEventListener( 'click', function () {
+			var nowExpanded = body.hidden;
+			body.hidden = ! nowExpanded;
+			toggle.setAttribute( 'aria-expanded', nowExpanded ? 'true' : 'false' );
+			toggle.classList.toggle( 'is-expanded', nowExpanded );
+			expandedGroups[ type ] = nowExpanded;
+		} );
+
+		return fragment;
+	}
+
 	function renderRows() {
 		var severity = filterSeverity.value;
 		var search   = filterSearch.value.trim().toLowerCase();
 
-		tbody.innerHTML = '';
+		groupsEl.innerHTML = '';
 
 		var filtered = currentRows.filter( function ( row ) {
 			if ( severity ) {
@@ -198,18 +434,43 @@
 		} );
 
 		if ( ! filtered.length ) {
-			var emptyRow = document.createElement( 'tr' );
-			emptyRow.className = 'seob-empty-row';
-			var emptyCell = document.createElement( 'td' );
-			emptyCell.colSpan = 14;
-			emptyCell.textContent = currentRows.length ? 'Žádné výsledky neodpovídají filtru.' : 'Zatím žádný scan. Spusťte ho tlačítkem výše.';
-			emptyRow.appendChild( emptyCell );
-			tbody.appendChild( emptyRow );
+			var empty = document.createElement( 'p' );
+			empty.className = 'seob-empty-groups';
+			empty.textContent = currentRows.length ? 'Žádné výsledky neodpovídají filtru.' : 'Zatím žádný scan. Spusťte ho tlačítkem výše.';
+			groupsEl.appendChild( empty );
 			return;
 		}
 
-		filtered.forEach( function ( row, index ) {
-			tbody.appendChild( buildRow( row, index ) );
+		var groups = {};
+		var order  = [];
+
+		filtered.forEach( function ( row ) {
+			var type = row.object_type || 'post';
+
+			if ( ! groups[ type ] ) {
+				groups[ type ] = [];
+				order.push( type );
+			}
+
+			groups[ type ].push( row );
+		} );
+
+		// Skupiny s nejhorším průměrným skóre první – problém je vidět na první pohled.
+		order.sort( function ( a, b ) {
+			return avgScore( groups[ a ] ) - avgScore( groups[ b ] );
+		} );
+
+		if ( ! expandedGroups ) {
+			expandedGroups = {};
+			expandedGroups[ order[ 0 ] ] = true;
+		}
+
+		order.forEach( function ( type ) {
+			groupsEl.appendChild( buildGroup( type, groups[ type ] ) );
+		} );
+
+		groupsEl.querySelectorAll( '.seob-audit-table' ).forEach( function ( table ) {
+			table.classList.toggle( 'seob-gsc-hidden', ! gscAvailable );
 		} );
 	}
 
@@ -230,6 +491,11 @@
 		var scoreBadge = resultRow.querySelector( '.seob-score-badge' );
 		scoreBadge.textContent = row.score;
 		scoreBadge.classList.add( row.score >= 80 ? 'seob-score-good' : row.score >= 50 ? 'seob-score-mid' : 'seob-score-bad' );
+
+		var rowDeltaEl = createScoreDeltaEl( row.score_delta, rowIssueChangeTooltip( row ) );
+		if ( rowDeltaEl ) {
+			scoreBadge.insertAdjacentElement( 'afterend', rowDeltaEl );
+		}
 
 		var titleIssue = findIssue( row.issues, 'title_missing' ) || findIssue( row.issues, 'title_too_long' );
 		resultRow.querySelector( '.seob-col-title' ).appendChild(
@@ -482,16 +748,19 @@
 				return;
 			}
 
-			currentRows = response.data.rows || [];
+			currentRows = ( response.data.rows || [] ).map( function ( row ) {
+				row.score = Number( row.score );
+				row.score_delta = null === row.score_delta || undefined === row.score_delta ? null : Number( row.score_delta );
+				return row;
+			} );
+			currentSummary = response.data.summary || null;
+			gscAvailable   = !! response.data.gsc_available;
+
 			renderSummary( response.data.summary );
 			renderRows();
 
-			var gscAvailable = !! response.data.gsc_available;
 			if ( gscNotice ) {
 				gscNotice.hidden = gscAvailable;
-			}
-			if ( auditTable ) {
-				auditTable.classList.toggle( 'seob-gsc-hidden', ! gscAvailable );
 			}
 
 			if ( scanHistory && response.data.summary && response.data.summary.id ) {

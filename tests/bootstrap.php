@@ -13,3 +13,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! defined( 'SEOB_PLUGIN_DIR' ) ) {
 	define( 'SEOB_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
 }
+
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
+	define( 'HOUR_IN_SECONDS', 3600 );
+}
+
+if ( ! function_exists( '__' ) ) {
+	function __( string $text, string $domain = 'default' ): string {
+		return $text;
+	}
+}
+
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		private string $code;
+		private string $message;
+
+		public function __construct( string $code = '', string $message = '' ) {
+			$this->code    = $code;
+			$this->message = $message;
+		}
+
+		public function get_error_message(): string {
+			return $this->message;
+		}
+
+		public function get_error_code(): string {
+			return $this->code;
+		}
+	}
+}

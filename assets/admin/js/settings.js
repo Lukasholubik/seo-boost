@@ -43,7 +43,8 @@
 
 		Promise.all( [
 			postAction( 'seob_save_settings' ),
-			postAction( 'seob_save_ai_settings' )
+			postAction( 'seob_save_ai_settings' ),
+			postAction( 'seob_save_pagespeed_settings' )
 		] ).then( function ( responses ) {
 			var success = responses.every( function ( response ) {
 				return response && response.success;

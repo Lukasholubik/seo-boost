@@ -46,6 +46,12 @@ class SEOB_Module_Manager {
 			'classes'     => [ 'SEOB_AiQueue_Ajax' ],
 			'depends_on'  => [ 'audit' ],
 		],
+		'pagespeed' => [
+			'label'       => 'PageSpeed Insights (Lighthouse)',
+			'description' => 'Pravidelně testuje vzorek stránek přes Google PageSpeed Insights/Lighthouse a shrnuje SEO doporučení podle typu obsahu.',
+			'classes'     => [ 'SEOB_PageSpeed_Ajax' ],
+			'depends_on'  => [],
+		],
 	];
 
 	/**

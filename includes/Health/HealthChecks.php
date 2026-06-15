@@ -90,6 +90,8 @@ class SEOB_Health_Checks {
 				return self::gsc_checks();
 			case 'ai-queue':
 				return self::ai_queue_checks();
+			case 'pagespeed':
+				return self::pagespeed_checks();
 			default:
 				return [];
 		}
@@ -355,6 +357,64 @@ class SEOB_Health_Checks {
 				'message'      => 'Žádné návrhy nečekají na schválení.',
 				'action_label' => null,
 				'action_url'   => null,
+			],
+		];
+	}
+
+	private static function pagespeed_checks(): array {
+		$settings = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
+
+		if ( empty( $settings['enabled'] ) || '' === $settings['api_key_enc'] ) {
+			return [
+				[
+					'id'           => 'pagespeed_configured',
+					'label'        => 'PageSpeed Insights',
+					'status'       => 'critical',
+					'message'      => 'Modul PageSpeed Insights je zapnutý, ale chybí API klíč.',
+					'action_label' => 'Otevřít Nastavení',
+					'action_url'   => admin_url( 'admin.php?page=seob-settings' ),
+				],
+			];
+		}
+
+		$runner  = new SEOB_PageSpeed_ScanRunner();
+		$results = $runner->get_results();
+
+		if ( null === $results ) {
+			return [
+				[
+					'id'           => 'pagespeed_last_run',
+					'label'        => 'Poslední analýza',
+					'status'       => 'good',
+					'message'      => 'Zatím neproběhla žádná analýza PageSpeed Insights.',
+					'action_label' => 'Spustit analýzu',
+					'action_url'   => admin_url( 'admin.php?page=seob-pagespeed' ),
+				],
+			];
+		}
+
+		$seo_scores = [];
+
+		foreach ( $results['groups'] as $group_rows ) {
+			foreach ( $group_rows as $row ) {
+				if ( null !== $row['seo_avg'] ) {
+					$seo_scores[] = (int) $row['seo_avg'];
+				}
+			}
+		}
+
+		$seo_avg = empty( $seo_scores ) ? null : (int) round( array_sum( $seo_scores ) / count( $seo_scores ) );
+
+		return [
+			[
+				'id'           => 'pagespeed_last_run',
+				'label'        => 'Poslední analýza',
+				'status'       => null !== $seo_avg && $seo_avg < 80 ? 'warning' : 'good',
+				'message'      => null !== $seo_avg
+					? sprintf( 'Poslední analýza dokončena %s, průměrné SEO skóre %d/100.', mysql2date( 'j. n. Y H:i', $results['run']['finished_at'] ), $seo_avg )
+					: sprintf( 'Poslední analýza dokončena %s.', mysql2date( 'j. n. Y H:i', $results['run']['finished_at'] ) ),
+				'action_label' => 'Zobrazit PageSpeed Insights',
+				'action_url'   => admin_url( 'admin.php?page=seob-pagespeed' ),
 			],
 		];
 	}

@@ -12,6 +12,46 @@ class SEOB_Audit_ScanRunner {
 	private const QUEUE_TTL = HOUR_IN_SECONDS;
 
 	/**
+	 * Post typy, které se do auditu nikdy nezahrnují (Elementor/JetEngine
+	 * šablony a stavební bloky, ne reálný obsah webu).
+	 */
+	private const EXCLUDED_POST_TYPES = [
+		'attachment',
+		'jet-popup',
+		'e-floating-buttons',
+		'elementor_library',
+		'jet-theme-core',
+	];
+
+	/**
+	 * Zjistí, které veřejné post typy se mají na tomto webu skenovat.
+	 *
+	 * Zjišťuje se dynamicky podle registrovaných post typů a jejich obsahu,
+	 * takže audit se sám přizpůsobí konkrétnímu webu (žádné natvrdo
+	 * zadané "post"/"page").
+	 *
+	 * @return string[]
+	 */
+	public static function get_audit_post_types(): array {
+		$post_types = get_post_types( [ 'public' => true ], 'names' );
+		$result     = [];
+
+		foreach ( $post_types as $post_type ) {
+			if ( in_array( $post_type, self::EXCLUDED_POST_TYPES, true ) ) {
+				continue;
+			}
+
+			$counts = wp_count_posts( $post_type );
+
+			if ( ! empty( $counts->publish ) ) {
+				$result[] = $post_type;
+			}
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Založí nový běh scanu a připraví frontu URL ke zpracování.
 	 *
 	 * @return array{scan_id:int,urls_total:int}
@@ -20,7 +60,7 @@ class SEOB_Audit_ScanRunner {
 		global $wpdb;
 
 		$post_ids = get_posts( [
-			'post_type'      => [ 'post', 'page' ],
+			'post_type'      => self::get_audit_post_types(),
 			'post_status'    => 'publish',
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
@@ -353,10 +393,13 @@ class SEOB_Audit_ScanRunner {
 			ARRAY_A
 		);
 
-		$previous_issue_types = $this->get_previous_issue_types( $scan_id );
+		$previous = $this->get_previous_scan_data( $scan_id );
 
 		$counts        = [ 'critical' => 0, 'warning' => 0, 'recommendation' => 0 ];
 		$resolved_total = 0;
+
+		$group_scores        = [];
+		$group_issue_changes = [];
 
 		foreach ( $rows as &$row ) {
 			$issues = json_decode( (string) $row['issues_json'], true );
@@ -373,67 +416,135 @@ class SEOB_Audit_ScanRunner {
 
 			$current_types = wp_list_pluck( $row['issues'], 'type' );
 			$object_id     = (int) $row['object_id'];
+			$object_type   = $row['object_type'];
 			$resolved      = [];
+			$new_issues    = [];
 
-			if ( isset( $previous_issue_types[ $object_id ] ) ) {
-				$resolved = array_values( array_diff( $previous_issue_types[ $object_id ], $current_types ) );
+			if ( isset( $previous['issue_types'][ $object_id ] ) ) {
+				$resolved   = array_values( array_diff( $previous['issue_types'][ $object_id ], $current_types ) );
+				$new_issues = array_values( array_diff( $current_types, $previous['issue_types'][ $object_id ] ) );
 			}
 
 			$row['resolved_issues'] = $resolved;
+			$row['new_issues']      = $new_issues;
 			$resolved_total         += count( $resolved );
 
 			$row['title']     = get_the_title( $object_id );
 			$row['edit_link'] = (string) get_edit_post_link( $object_id, 'raw' );
+
+			$row['score_delta'] = isset( $previous['scores'][ $object_id ] )
+				? (int) $row['score'] - $previous['scores'][ $object_id ]
+				: null;
+
+			$group_scores[ $object_type ][] = (int) $row['score'];
+
+			foreach ( $resolved as $type ) {
+				$group_issue_changes[ $object_type ]['resolved'][ $type ] = ( $group_issue_changes[ $object_type ]['resolved'][ $type ] ?? 0 ) + 1;
+			}
+
+			foreach ( $new_issues as $type ) {
+				$group_issue_changes[ $object_type ]['new'][ $type ] = ( $group_issue_changes[ $object_type ]['new'][ $type ] ?? 0 ) + 1;
+			}
 		}
 		unset( $row );
+
+		$group_score_deltas = [];
+
+		foreach ( $group_scores as $object_type => $scores ) {
+			$avg = (int) round( array_sum( $scores ) / count( $scores ) );
+
+			if ( isset( $previous['group_scores'][ $object_type ] ) ) {
+				$group_score_deltas[ $object_type ] = $avg - $previous['group_scores'][ $object_type ];
+			}
+		}
 
 		$run = $wpdb->get_row(
 			$wpdb->prepare( "SELECT * FROM {$scan_runs_table} WHERE id = %d", $scan_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
 
+		$score_delta = ( null !== $previous['overall_score'] && isset( $run['score_avg'] ) )
+			? (int) $run['score_avg'] - $previous['overall_score']
+			: null;
+
 		return [
-			'summary' => array_merge( (array) $run, [ 'counts' => $counts, 'resolved_total' => $resolved_total ] ),
+			'summary' => array_merge(
+				(array) $run,
+				[
+					'counts'              => $counts,
+					'resolved_total'      => $resolved_total,
+					'score_delta'         => $score_delta,
+					'group_score_deltas'  => $group_score_deltas,
+					'group_issue_changes' => $group_issue_changes,
+				]
+			),
 			'rows'    => $rows,
 		];
 	}
 
 	/**
-	 * Vrátí mapu `object_id => [typy nálezů]` z posledního dokončeného scanu
-	 * předcházejícího danému `$scan_id`. Použije se pro zjištění, které nálezy
-	 * byly od minulého scanu opravené.
+	 * Vrátí data z posledního dokončeného scanu předcházejícího danému
+	 * `$scan_id`, potřebná pro výpočet trendů (porovnání s minulým auditem):
+	 * – mapu `object_id => [typy nálezů]` (pro "opraveno od minula"),
+	 * – mapu `object_id => skóre` (pro trend jednotlivé stránky),
+	 * – mapu `object_type => průměrné skóre` (pro trend kategorie),
+	 * – celkové průměrné skóre webu.
 	 *
-	 * @return array<int,array<int,string>>
+	 * @return array{issue_types:array<int,array<int,string>>,scores:array<int,int>,group_scores:array<string,int>,overall_score:?int}
 	 */
-	private function get_previous_issue_types( int $scan_id ): array {
+	private function get_previous_scan_data( int $scan_id ): array {
 		global $wpdb;
 
 		$audit_table     = SEOB_Database::audit_table();
 		$scan_runs_table = SEOB_Database::scan_runs_table();
 
-		$previous_scan_id = (int) $wpdb->get_var(
+		$empty = [
+			'issue_types'   => [],
+			'scores'        => [],
+			'group_scores'  => [],
+			'overall_score' => null,
+		];
+
+		$previous_scan = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id FROM {$scan_runs_table} WHERE status = 'done' AND id < %d ORDER BY id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT id, score_avg FROM {$scan_runs_table} WHERE status = 'done' AND id < %d ORDER BY id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$scan_id
-			)
-		);
-
-		if ( ! $previous_scan_id ) {
-			return [];
-		}
-
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT object_id, issues_json FROM {$audit_table} WHERE scan_id = %d", $previous_scan_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			),
 			ARRAY_A
 		);
 
-		$map = [];
-
-		foreach ( $rows as $row ) {
-			$issues = json_decode( (string) $row['issues_json'], true );
-			$map[ (int) $row['object_id'] ] = is_array( $issues ) ? wp_list_pluck( $issues, 'type' ) : [];
+		if ( ! $previous_scan ) {
+			return $empty;
 		}
 
-		return $map;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT object_id, object_type, score, issues_json FROM {$audit_table} WHERE scan_id = %d", (int) $previous_scan['id'] ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			ARRAY_A
+		);
+
+		$issue_types  = [];
+		$scores       = [];
+		$group_scores = [];
+
+		foreach ( $rows as $row ) {
+			$object_id   = (int) $row['object_id'];
+			$issues      = json_decode( (string) $row['issues_json'], true );
+			$issue_types[ $object_id ] = is_array( $issues ) ? wp_list_pluck( $issues, 'type' ) : [];
+			$scores[ $object_id ]      = (int) $row['score'];
+			$group_scores[ $row['object_type'] ][] = (int) $row['score'];
+		}
+
+		$group_avg = [];
+
+		foreach ( $group_scores as $object_type => $type_scores ) {
+			$group_avg[ $object_type ] = (int) round( array_sum( $type_scores ) / count( $type_scores ) );
+		}
+
+		return [
+			'issue_types'   => $issue_types,
+			'scores'        => $scores,
+			'group_scores'  => $group_avg,
+			'overall_score' => isset( $previous_scan['score_avg'] ) ? (int) $previous_scan['score_avg'] : null,
+		];
 	}
 }

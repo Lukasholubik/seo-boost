@@ -48,4 +48,19 @@ class SEOB_Database {
 		global $wpdb;
 		return $wpdb->prefix . 'seo_booster_facet_signals';
 	}
+
+	public static function psi_runs_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_psi_runs';
+	}
+
+	public static function psi_results_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_psi_results';
+	}
+
+	public static function psi_summary_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_psi_summary';
+	}
 }

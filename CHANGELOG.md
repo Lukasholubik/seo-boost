@@ -6,6 +6,23 @@ Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
 ## [Unreleased]
 
 ### Přidáno
+- **PageSpeed Insights (Lighthouse)** (`includes/PageSpeed/`): nový modul
+  `pagespeed` – pro každý veřejný typ obsahu s publikovanými stránkami
+  vybere náhodný vzorek (5 položek), otestuje přes Google PageSpeed
+  Insights API (mobil i desktop) a shrne průměrné skóre
+  (Performance/Accessibility/Best Practices/SEO) + nejčastější SEO nálezy
+  s popisem. Dávkový scan na vyžádání s progress barem (vzor Audit scan),
+  historie posledních 10 běhů s porovnáním (delta) oproti předchozímu
+  běhu. Nová stránka „PageSpeed Insights“ (`seob-pagespeed`), API klíč
+  šifrovaný v DB (`SEOB_AiQueue_Crypt`), health check, dokumentace v
+  `docs/modules/pagespeed.md` (vč. návodu na získání free API klíče).
+  Navíc nová karta **„Celkový přehled webu“** – vážený průměr skóre přes
+  všechny typy obsahu (mobil/desktop) s trendem oproti minulému běhu
+  (`SEOB_PageSpeed_ScanRunner::compute_overall_scores()`).
+- **Audit Dashboard – trend skóre vs. minulý scan**: celkové skóre,
+  skóre po kategoriích i po jednotlivých stránkách nyní zobrazují `▲/▼`
+  s tooltipem, který popisuje konkrétní zlepšení/zhoršení (`new_issues`,
+  `resolved_issues`, `group_score_deltas`, `group_issue_changes`).
 - **AI schvalovací fronta** (`includes/AiQueue/`): nový modul `ai-queue`
   (výchozí vypnuto, `depends_on: ['audit']`). Generický OpenAI-compatible
   AI adaptér (`SEOB_AiQueue_OpenAi_Compatible_Provider`, funguje např. s
@@ -28,6 +45,17 @@ Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
   `docs/testing.md`.
 
 ### Opraveno
+- **Audit scan**: skenuje dynamicky všechny veřejné post typy webu
+  s publikovaným obsahem (vč. custom post typů jako „Slovíček pojmů“),
+  místo natvrdo `post`/`page` (`SEOB_Audit_ScanRunner::get_audit_post_types()`).
+- **Audit scan – kontrola obsahu (thin content)** u custom post typů, které
+  ukládají text do meta polí místo `post_content` (např. JetEngine CPT
+  „Slovíček pojmů“), dřív vždy hlásila 0 slov – `Scanner::collect_meta_content()`
+  nyní obsah poskládá z textových meta polí.
+- **Audit Dashboard – skóre skupiny** se po zapnutí trendů zobrazovalo jako
+  absurdní čísla (`2348275025` apod.) – `row.score` z DB je string a `+`
+  dělal konkatenaci, opraveno převodem na `Number` v `loadResults()`. Skupina
+  má nově i popisek „SEO skóre“.
 - **Export PDF reportu**: logo agentury se v hlavičce stránek nezobrazovalo,
   pokud admin nenahrál vlastní logo v Export – nastavení (`company.logo_id`
   bylo `0`) – `SEOB_Pdf_Report_Data::build()` nyní jako fallback použije logo

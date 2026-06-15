@@ -279,7 +279,14 @@ class SEOB_Audit_Scanner {
 			}
 		}
 
-		return $this->extract_from_html( $post );
+		if ( '' !== trim( (string) $post->post_content ) ) {
+			return $this->extract_from_html( $post->post_content );
+		}
+
+		// Custom post typy bez `post_content`/Elementoru (např. JetEngine
+		// "slovníček pojmů") mívají obsah v meta polích – poskládáme z nich
+		// náhradní HTML, aby šel spočítat počet slov, nadpisy a obrázky.
+		return $this->extract_from_html( $this->collect_meta_content( $post ) );
 	}
 
 	/**
@@ -336,16 +343,16 @@ class SEOB_Audit_Scanner {
 	}
 
 	/**
-	 * Fallback pro klasický obsah – vykreslí `the_content` a parsuje DOM.
+	 * Fallback pro klasický obsah – parsuje zadané HTML (DOM) a počítá slova,
+	 * nadpisy a obrázky.
 	 */
-	private function extract_from_html( WP_Post $post ): array {
+	private function extract_from_html( string $raw_content ): array {
 		$headings = array_fill( 1, 6, 0 );
 		$images_total = 0;
 		$images_missing_alt = 0;
 
-		$raw_content = $post->post_content;
-		$plain_text  = wp_strip_all_tags( strip_shortcodes( $raw_content ) );
-		$word_count  = $this->count_words( $plain_text );
+		$plain_text = wp_strip_all_tags( strip_shortcodes( $raw_content ) );
+		$word_count = $this->count_words( $plain_text );
 
 		if ( '' !== trim( $raw_content ) ) {
 			$dom = new DOMDocument();
@@ -372,6 +379,31 @@ class SEOB_Audit_Scanner {
 			'images_missing_alt' => $images_missing_alt,
 			'word_count'         => $word_count,
 		];
+	}
+
+	/**
+	 * Poskládá náhradní HTML z textových meta polí příspěvku – pro custom
+	 * post typy, které ukládají obsah do vlastních meta polí (např.
+	 * JetEngine), ne do `post_content`. Vynechává interní meta (klíče
+	 * začínající `_`) a meta SEO pluginu (`rank_math_*`).
+	 */
+	private function collect_meta_content( WP_Post $post ): string {
+		$meta  = get_post_meta( $post->ID );
+		$parts = [];
+
+		foreach ( $meta as $key => $values ) {
+			if ( '_' === $key[0] || 0 === strpos( $key, 'rank_math_' ) ) {
+				continue;
+			}
+
+			foreach ( $values as $value ) {
+				if ( is_string( $value ) && ! is_numeric( $value ) && '' !== trim( wp_strip_all_tags( $value ) ) ) {
+					$parts[] = $value;
+				}
+			}
+		}
+
+		return implode( ' ', $parts );
 	}
 
 	private function count_words( string $text ): int {

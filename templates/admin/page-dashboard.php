@@ -59,32 +59,52 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<input type="search" id="seob-filter-search" placeholder="<?php esc_attr_e( 'Hledat URL nebo titulek…', 'seo-boost' ); ?>">
 	</div>
 
-	<table class="wp-list-table widefat seob-table seob-audit-table">
-		<thead>
-			<tr>
-				<th class="seob-col-url"><?php esc_html_e( 'Stránka', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Skóre', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Title', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Description', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'H1', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Alt texty', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Schéma', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Obsah', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Od minula', 'seo-boost' ); ?></th>
-				<th class="seob-col-gsc"><?php esc_html_e( 'Zobrazení', 'seo-boost' ); ?></th>
-				<th class="seob-col-gsc"><?php esc_html_e( 'Kliky', 'seo-boost' ); ?></th>
-				<th class="seob-col-gsc"><?php esc_html_e( 'CTR', 'seo-boost' ); ?></th>
-				<th class="seob-col-gsc"><?php esc_html_e( 'Pozice', 'seo-boost' ); ?></th>
-				<th><?php esc_html_e( 'Akce', 'seo-boost' ); ?></th>
-			</tr>
-		</thead>
-		<tbody id="seob-results-body">
-			<tr class="seob-empty-row">
-				<td colspan="14"><?php esc_html_e( 'Zatím žádný scan. Spusťte ho tlačítkem výše.', 'seo-boost' ); ?></td>
-			</tr>
-		</tbody>
-	</table>
+	<div id="seob-groups">
+		<p class="seob-empty-groups"><?php esc_html_e( 'Zatím žádný scan. Spusťte ho tlačítkem výše.', 'seo-boost' ); ?></p>
+	</div>
 </div>
+
+<template id="seob-group-template">
+	<div class="seob-audit-group">
+		<button type="button" class="seob-group-toggle" aria-expanded="false">
+			<span class="seob-group-arrow" aria-hidden="true">▶</span>
+			<span class="seob-group-title"></span>
+			<span class="seob-group-count"></span>
+			<span class="seob-group-score-label"></span>
+			<span class="seob-group-score-badge seob-score-badge"></span>
+			<span class="seob-group-counts">
+				<span class="seob-group-count-critical seob-count-critical"></span>
+				<span class="seob-group-count-warning seob-count-warning"></span>
+				<span class="seob-group-count-recommendation seob-count-recommendation"></span>
+				<span class="seob-group-count-resolved seob-count-resolved"></span>
+			</span>
+			<span class="seob-group-gsc"></span>
+		</button>
+		<div class="seob-group-body" hidden>
+			<table class="wp-list-table widefat seob-table seob-audit-table">
+				<thead>
+					<tr>
+						<th class="seob-col-url"><?php esc_html_e( 'Stránka', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Skóre', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Title', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Description', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'H1', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Alt texty', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Schéma', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Obsah', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Od minula', 'seo-boost' ); ?></th>
+						<th class="seob-col-gsc"><?php esc_html_e( 'Zobrazení', 'seo-boost' ); ?></th>
+						<th class="seob-col-gsc"><?php esc_html_e( 'Kliky', 'seo-boost' ); ?></th>
+						<th class="seob-col-gsc"><?php esc_html_e( 'CTR', 'seo-boost' ); ?></th>
+						<th class="seob-col-gsc"><?php esc_html_e( 'Pozice', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Akce', 'seo-boost' ); ?></th>
+					</tr>
+				</thead>
+				<tbody class="seob-group-rows"></tbody>
+			</table>
+		</div>
+	</div>
+</template>
 
 <template id="seob-row-template">
 	<tr class="seob-result-row">

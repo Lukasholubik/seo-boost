@@ -5,7 +5,139 @@
 
 ---
 
-## 🟢 ZAČNI ZDE – konec session 2026-06-15
+## 🟢 ZAČNI ZDE – konec session 2026-06-15 (NEPUSHNUTO)
+
+**Nově: souhrnný přehled celého webu na stránce PageSpeed Insights.**
+`get_results()` vrací nový klíč `overall` => `['mobile' => [...,'deltas'],
+'desktop' => [...]]` – vážený průměr (`compute_overall_scores()`, váha =
+`sample_size`) přes `performance_avg/accessibility_avg/best_practices_avg/seo_avg`
+ze všech `psi_summary` řádků daného běhu, + delta vs. předchozí běh. V UI
+nová karta "Celkový přehled webu (průměr ze všech typů obsahu)" nad
+jednotlivými skupinami (`#seob-psi-overall`, šablona
+`#seob-psi-overall-template`, `renderOverall()` v `pagespeed.js`).
+`composer test` **38/38 OK**, `php -l` OK. **V prohlížeči neotestováno** –
+na `.local` webu nejsou žádná validní skóre (viz limit níže), takže karta
+ukáže jen "–" dokud neproběhne run s reálnými daty (produkce/tunel).
+Detaily v `docs/dev-log.md` (záznam "PageSpeed Insights: souhrnný přehled
+celého webu...").
+
+**ZNÁMÝ LIMIT – PageSpeed Insights nelze testovat na .local webu.** Běh
+`#4` (50 položek) doběhl, ale VŠECH 51 `psi_results` má
+`error: "Lighthouse returned error: FAILED_DOCUMENT_REQUEST ... net::ERR_CONNECTION_FAILED"`,
+takže `psi_summary` má jen prázdné skóre (UI ukazuje "–" a "Žádné výrazné
+SEO nálezy"). **Příčina**: Google PSI API se musí připojit k URL z
+internetu – `reboost-test.local` (Local by Flywheel) není veřejně dostupný.
+**Není to bug v kódu** – modul je hotový a funkční, jen ho nelze ověřit na
+tomto lokálním webu. Otestovat až na veřejné doméně (reboost.cz), případně
+přes tunel (ngrok apod.).
+
+**Git stav**: `wp-content/plugins/seo-boost/` je samostatný git repo
+(`c:\Users\PC\Local Sites\reboost-test\app\public\wp-content\plugins\seo-boost`),
+branch `main`. Velké množství necommitnutých změn (PageSpeed Insights modul
+celý + dnešní Audit Dashboard úpravy) – `git status` ukazuje M na ~17
+souborech + nové `assets/admin/js/pagespeed.js`, `docs/modules/pagespeed.md`.
+**Nic z toho není commitnuto ani pushnuto.** Až uživatel řekne "push",
+udělat `git add` + `commit` + `push` v tomto adresáři (ne v rootu webu –
+root repo trackuje jen `local-xdebuginfo.php`/`wp-rocket-config` jako
+untracked, nesouvisí).
+
+**Ověřeno (2026-06-15, přes wp-cli, bez prohlížeče)** – scan `#26`, 87
+položek:
+1. ✅ 3 skupiny (post avg=97, page avg=68, slovicek-pojmu avg=93).
+2. ✅ Skóre = normální čísla 0-100, žádný vědecký zápis (`score_avg=91`).
+3. ✅ `group_score_deltas` (page -2, post/slovicek 0) + `group_issue_changes`
+   (page.new.description_missing=1, slovicek-pojmu.resolved.thin_content=1) –
+   `ISSUE_LABELS` mapuje obě hodnoty na české popisky pro tooltip.
+4. ✅ Slovíček pojmů – post 1306 skóre 100, bez `thin_content` (reálný počet
+   slov, 74/75 stále pod limitem 300 = legitimní, ne falešná 0).
+
+Vizuální ověření v prohlížeči (rozbalení skupin, pozice tooltipů) zatím
+neproběhlo – live link/tunel není k dispozici na tomto PC, odloženo na
+produkci.
+
+**Další krok**: čeká na zadání uživatele (push změn? další modul?).
+
+---
+
+
+
+**Nově: trend skóre vs. minulý audit – celkově, po kategoriích i po
+stránkách, s tooltipem "v čem konkrétně".** `get_results()` vrací
+`score_delta`/`new_issues`/`resolved_issues` (per stránka), celkový
+`score_delta`, `group_score_deltas` a `group_issue_changes` (per kategorie).
+V UI `▲/▼` vedle skóre badge + tooltip "Zlepšeno/Zhoršeno: konkrétní nález".
+Skupina má i popisek "SEO skóre". Detaily v `docs/dev-log.md` (záznamy
+"Audit Dashboard: trend skóre..." a "...oprava skóre skupiny...").
+
+**Oprava bugu**: skóre skupiny se po zapnutí trendů zobrazovalo jako
+absurdní čísla (`row.score` z DB je string → `+` dělal konkatenaci).
+Opraveno převodem na `Number` v `loadResults()`. wp-cli ověřeno na scanu
+`#26`: `group_score_deltas` i `group_issue_changes` vrací správné hodnoty
+(`page.new.description_missing=1`, `slovicek-pojmu.resolved.thin_content=1`).
+`composer test` **38/38 OK**. **V prohlížeči ještě neotestováno – další
+krok** (zkontrolovat, že se skóre skupin zobrazuje jako normální číslo
+0-100, ne vědecký zápis).
+
+**Oprava: kontrola obsahu (počet slov) u "Slovíček pojmů" dřív ukazovala
+0 u všech 75 položek** (JetEngine CPT ukládá obsah do meta polí, ne
+`post_content`). Nyní `Scanner::collect_meta_content()` poskládá obsah
+z textových meta polí (obecně, ne natvrdo pro tento CPT). Detaily v
+`docs/dev-log.md` (záznam "Audit scan: oprava kontroly obsahu...").
+
+wp-cli: scan `#26` (87 položek) doběhl po opravě – `score_avg=91`,
+`slovicek-pojmu` avg=93 (74/75 nyní legitimně `thin_content`, reálný počet
+slov ~248 < limit 300, ne falešná 0). `composer test` **38/38 OK**.
+
+**Audit scan nově skenuje VŠECHNY relevantní post typy webu, ne jen
+post/page.** `SEOB_Audit_ScanRunner::get_audit_post_types()` dynamicky
+zjistí veřejné post typy s publikovaným obsahem a vyloučí Elementor/JetEngine
+builder typy (`jet-popup`, `e-floating-buttons`, `elementor_library`,
+`jet-theme-core`, `attachment`). Na tomto webu to nově vrací
+`['post', 'page', 'slovicek-pojmu']` (4 + 8 + 75 = 87 položek). Detaily
+v `docs/dev-log.md` (záznam "Audit scan: dynamické post typy podle webu...").
+
+**Audit Dashboard nově seskupuje výsledky podle typu obsahu** – sbalitelné
+skupiny, nejhorší skóre nahoře, počty kritických/varování/doporučení
+v hlavičce. Díky dynamickým `postTypeLabels` se nyní automaticky objeví i
+skupina "Slovíček pojmů". Detaily v `docs/dev-log.md` (záznam "Audit
+Dashboard: výsledky seskupené podle typu obsahu..."). `composer test`
+**38/38 OK**.
+
+wp-cli: scan `#25` (87 položek) doběhl – `status=done`, `score_avg=91`,
+výsledky: 4 `post` + 8 `page` + 75 `slovicek-pojmu` (přesně podle očekávání).
+**Zbývá otevřít Audit Dashboard v prohlížeči a ověřit, že se zobrazí 3
+skupiny (Příspěvky/Stránky/Slovíček pojmů) se správnými labely a skóre –
+další krok.**
+
+**Modul "PageSpeed Insights (Lighthouse)" hotový, nakonfigurovaný a doplněný
+o běh na pozadí (WP-Cron) + historii/porovnání skóre.** Detaily v
+`docs/dev-log.md` (záznamy "PageSpeed Insights: běh na pozadí (WP-Cron)..."
+a starší).
+
+Uživatel vytvořil free PSI API klíč (omezený jen na „PageSpeed Insights
+API“), uložen šifrovaně do `SEOB_Settings::PAGESPEED`, modul **zapnut**
+(`enabled=1`). Health check vrací `pagespeed_last_run: good`.
+
+Uživatel reálně spustil scan (běh `#4`, 50 položek) a požádal o:
+1. **Běh na pozadí** – implementováno přes WP-Cron (`SEOB_PageSpeed_ScanRunner::CRON_HOOK`),
+   ověřeno wp-cli smoke testem, že `get_active_run()` vrací reálně postupující
+   běh (33/50 → 34/50 mezi dvěma voláními bez zásahu uživatele).
+2. **Historie + porovnání skóre** – `get_run_history()`, `get_results($run_id)`
+   s `compute_deltas()` vůči předchozímu běhu, dropdown "Historie běhů" +
+   `.seob-psi-delta-*` indikátory v UI.
+
+**Zatím nepushnuto.**
+
+**Co zbývá (další krok):**
+1. Otevřít **SEO Booster Pro → Audit Dashboard** v prohlížeči – ověřit
+   skupiny (Příspěvky/Stránky), rozbalení/sbalení, filtry (severity/search)
+   uvnitř skupin, GSC sloupce, AI návrhy v rozbaleném řádku.
+2. Otevřít **SEO Booster Pro → PageSpeed Insights** – běh `#4` by měl
+   mezitím doběhnout na pozadí (WP-Cron se spouští při návštěvě webu).
+   Ověřit progress bar po reloadu (resume přes `seob_psi_active`), historii
+   běhů v dropdownu, a po druhém scanu deltu (+/-/0) oproti běhu `#4`.
+
+**Dále stále čeká (z předchozí session, beze změny):**
 
 **Git stav:** Celý dlouho narostlý balík (Stav systému/ModuleManager,
 Chytrá indexace, GSC insights, PDF redesign, schema overrides, scan
@@ -22,8 +154,8 @@ v prohlížeči – vyžaduje od uživatele free API klíč (Gemini/Groq, návod
 Dashboardu, stránka AI fronta, health check.
 
 **Jak pokračovat příští session:** Přečíst tento soubor (hotovo automaticky),
-zeptat se uživatele, jestli už má API klíč na test AI fronty (bod D), nebo
-zda chce probrat jiný bod z "Další krok" (1-3).
+zeptat se uživatele, jestli už má API klíč na test PageSpeed Insights nebo AI
+fronty (bod D), nebo zda chce probrat jiný bod z "Další krok" (1-3).
 
 ---
 

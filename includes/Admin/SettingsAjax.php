@@ -15,6 +15,7 @@ class SEOB_Settings_Ajax {
 		add_action( 'wp_ajax_seob_save_settings', [ $this, 'save_settings' ] );
 		add_action( 'wp_ajax_seob_save_pdf_settings', [ $this, 'save_pdf_settings' ] );
 		add_action( 'wp_ajax_seob_save_ai_settings', [ $this, 'save_ai_settings' ] );
+		add_action( 'wp_ajax_seob_save_pagespeed_settings', [ $this, 'save_pagespeed_settings' ] );
 	}
 
 	public function save_settings(): void {
@@ -34,6 +35,7 @@ class SEOB_Settings_Ajax {
 				'smart-indexing' => $this->bool_field( 'modules_smart_indexing' ),
 				'gsc-insights'   => $this->bool_field( 'modules_gsc_insights' ),
 				'ai-queue'       => $this->bool_field( 'modules_ai_queue' ),
+				'pagespeed'      => $this->bool_field( 'modules_pagespeed' ),
 			],
 		];
 
@@ -112,6 +114,38 @@ class SEOB_Settings_Ajax {
 			'model'       => $ai['model'],
 			'max_tokens'  => $ai['max_tokens'],
 			'has_api_key' => '' !== $ai['api_key_enc'],
+		] );
+	}
+
+	/**
+	 * Uloží nastavení PageSpeed Insights (zapnutí modulu, API klíč – šifrovaně).
+	 */
+	public function save_pagespeed_settings(): void {
+		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nemáte oprávnění.', 'seo-boost' ) ], 403 );
+		}
+
+		$defaults = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
+
+		$api_key_enc = $defaults['api_key_enc'];
+		$api_key     = $this->text_field( 'pagespeed_api_key' );
+
+		if ( '' !== $api_key ) {
+			$api_key_enc = SEOB_AiQueue_Crypt::encrypt( $api_key );
+		}
+
+		$pagespeed = [
+			'enabled'     => $this->bool_field( 'pagespeed_enabled' ),
+			'api_key_enc' => $api_key_enc,
+		];
+
+		SEOB_Settings::update( SEOB_Settings::PAGESPEED, $pagespeed );
+
+		wp_send_json_success( [
+			'enabled'     => $pagespeed['enabled'],
+			'has_api_key' => '' !== $pagespeed['api_key_enc'],
 		] );
 	}
 
