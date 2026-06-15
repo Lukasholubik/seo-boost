@@ -28,4 +28,24 @@ class SEOB_Database {
 		global $wpdb;
 		return $wpdb->prefix . 'seo_booster_links';
 	}
+
+	public static function metrics_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_metrics';
+	}
+
+	public static function facet_rules_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_facet_rules';
+	}
+
+	public static function facet_urls_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_facet_urls';
+	}
+
+	public static function facet_signals_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_facet_signals';
+	}
 }

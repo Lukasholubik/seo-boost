@@ -4,3 +4,6 @@ Thumbs.db
 .idea/
 *.log
 node_modules/
+vendor/_tcpdf_tmp/
+vendor-dev/
+.phpunit.result.cache

@@ -34,7 +34,6 @@ class SEOB_Audit_Scanner {
 		$description = (string) get_post_meta( $post_id, 'rank_math_description', true );
 		$focus_kw    = (string) get_post_meta( $post_id, 'rank_math_focus_keyword', true );
 		$robots      = get_post_meta( $post_id, 'rank_math_robots', true );
-		$schema      = get_post_meta( $post_id, 'rank_math_rich_snippet', true );
 
 		$content = $this->extract_content_data( $post );
 
@@ -61,7 +60,13 @@ class SEOB_Audit_Scanner {
 		}
 
 		// --- H1 / nadpisy ----------------------------------------------------
-		$h1_count = $content['headings'][1] ?? 0;
+		// H1 se ověřuje přímo na vykresleném výstupu stránky, protože u příspěvků
+		// (a u stránek s šablonou) bývá nadpis vykreslen šablonou/Theme Builderem
+		// mimo `_elementor_data`/`post_content`, takže by jinak byl falešně hlášen
+		// jako chybějící.
+		$rendered_h1 = $this->count_rendered_h1( $post );
+		$h1_count    = null !== $rendered_h1 ? $rendered_h1 : ( $content['headings'][1] ?? 0 );
+
 		if ( 0 === $h1_count ) {
 			$issues[] = $this->issue( 'h1_missing', 'critical' );
 		} elseif ( $h1_count > 1 ) {
@@ -82,7 +87,11 @@ class SEOB_Audit_Scanner {
 		}
 
 		// --- Strukturovaná data ------------------------------------------------
-		if ( empty( $schema ) || 'off' === $schema ) {
+		// Bere v úvahu i výchozí schéma dle nastavení Rank Math pro daný typ obsahu
+		// a výchozí schéma kategorie (SEOB_Schema_Helper) – ne jen vlastní meta příspěvku.
+		$schema_info  = SEOB_Schema_Helper::get_effective_type( $post );
+		$schema_empty = ( 'off' === $schema_info['type'] || '' === $schema_info['type'] );
+		if ( $schema_empty && empty( $schema_info['is_explicit'] ) ) {
 			$issues[] = $this->issue( 'schema_missing', 'warning' );
 		}
 
@@ -109,11 +118,12 @@ class SEOB_Audit_Scanner {
 			$description,
 			$content['word_count'],
 			$content['headings'],
+			$h1_count,
 			$content['images_total'],
 			$content['images_missing_alt'],
 			$focus_kw,
 			$robots,
-			$schema,
+			$schema_info,
 		] );
 
 		return [
@@ -124,6 +134,7 @@ class SEOB_Audit_Scanner {
 			'description'  => $description,
 			'score'        => $score,
 			'issues'       => $issues,
+			'schema'       => $schema_info,
 			'content_hash' => md5( (string) $hash_source ),
 		];
 	}
@@ -144,6 +155,86 @@ class SEOB_Audit_Scanner {
 		}
 
 		return max( 0, min( 100, $score ) );
+	}
+
+	/**
+	 * Spočítá unikátní H1 nadpisy ve skutečně vykresleném HTML stránky.
+	 *
+	 * Na rozdíl od obsahu příspěvku/Elementor dat zachytí i nadpis vložený
+	 * šablonou nebo Theme Builder šablonou (typický případ u standardních
+	 * WP příspěvků). Vrací `null`, pokud se stránku nepodařilo načíst –
+	 * v tom případě se použije fallback na nadpisy z obsahu.
+	 */
+	private function count_rendered_h1( WP_Post $post ): ?int {
+		$cache_key = 'seob_h1_' . $post->ID;
+		$cached    = get_transient( $cache_key );
+
+		if ( is_array( $cached ) && ( $cached['modified'] ?? '' ) === $post->post_modified_gmt ) {
+			return $cached['count'];
+		}
+
+		$url = get_permalink( $post );
+
+		if ( ! $url ) {
+			return null;
+		}
+
+		// Loopback request: posílá cookies přihlášeného uživatele, aby WP Rocket
+		// nevrátil starou cache a Wordfence/firewall nebral požadavek jako bota.
+		$cookies = [];
+		foreach ( $_COOKIE as $name => $val ) {
+			$cookies[] = new WP_Http_Cookie( [ 'name' => $name, 'value' => $val ] );
+		}
+
+		$args = [
+			'timeout'   => 10,
+			'sslverify' => false,
+			'cookies'   => $cookies,
+			'headers'   => [ 'Cache-Control' => 'no-cache' ],
+		];
+
+		// Loopback požadavky během dávkového scanu občas selžou (vytížení
+		// PHP-FPM workerů / firewall), proto až 3 pokusy s krátkou prodlevou.
+		$response = null;
+		for ( $attempt = 1; $attempt <= 3; $attempt++ ) {
+			$response = wp_remote_get( $url, $args );
+
+			if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
+				break;
+			}
+
+			if ( $attempt < 3 ) {
+				usleep( 300000 );
+			}
+		}
+
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			return null;
+		}
+
+		$html = wp_remote_retrieve_body( $response );
+
+		if ( '' === trim( $html ) ) {
+			return null;
+		}
+
+		preg_match_all( '/<h1[^>]*>(.*?)<\/h1>/is', $html, $matches );
+
+		$unique = [];
+
+		foreach ( $matches[1] as $inner ) {
+			$text = trim( wp_strip_all_tags( $inner ) );
+
+			if ( '' !== $text ) {
+				$unique[ $text ] = true;
+			}
+		}
+
+		$count = count( $unique );
+
+		set_transient( $cache_key, [ 'modified' => $post->post_modified_gmt, 'count' => $count ], DAY_IN_SECONDS );
+
+		return $count;
 	}
 
 	/**

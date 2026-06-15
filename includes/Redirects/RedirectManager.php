@@ -163,5 +163,11 @@ class SEOB_Redirect_Manager {
 				gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS )
 			)
 		);
+
+		$unresolved = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$links_table} WHERE redirect_to IS NULL AND hits_404 > 0" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+
+		SEOB_Metrics::record( 'redirects', 'unresolved_404_count', $unresolved );
 	}
 }

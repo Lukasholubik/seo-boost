@@ -16,7 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SEOB_VERSION',     '0.1.0' );
+define( 'SEOB_VERSION',     '0.3.0' );
+define( 'SEOB_DB_VERSION',  '0.4.0' );
 define( 'SEOB_PLUGIN_FILE', __FILE__ );
 define( 'SEOB_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'SEOB_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -47,15 +48,36 @@ $seob_files = [
 	'includes/grou-admin-group.php',
 	'includes/Settings.php',
 	'includes/Database/Database.php',
+	'includes/Metrics/Metrics.php',
 	'includes/Activator.php',
+	'includes/ModuleManager.php',
+	'includes/Health/HealthChecks.php',
+	'includes/Health/StatusAjax.php',
 	'includes/Admin/Admin.php',
 	'includes/Audit/PixelWidth.php',
 	'includes/Audit/Scanner.php',
-	'includes/Audit/ScanRunner.php',
+	'includes/Audit/AuditScanRunner.php',
 	'includes/Audit/Ajax.php',
+	'includes/GscInsights/GscInsights.php',
 	'includes/Redirects/RedirectManager.php',
 	'includes/Redirects/Ajax.php',
 	'includes/Admin/SettingsAjax.php',
+	'includes/Schema/SchemaHelper.php',
+	'includes/Schema/CategoryAjax.php',
+	'includes/Schema/PostTypeAjax.php',
+	'includes/Pdf/ReportData.php',
+	'includes/Pdf/PdfRenderer.php',
+	'includes/Pdf/Ajax.php',
+	'includes/SmartIndexing/Helper.php',
+	'includes/SmartIndexing/CatalogScanner.php',
+	'includes/SmartIndexing/Frontend.php',
+	'includes/SmartIndexing/Ajax.php',
+	'includes/AiQueue/Crypt.php',
+	'includes/AiQueue/ProviderInterface.php',
+	'includes/AiQueue/OpenAiCompatibleProvider.php',
+	'includes/AiQueue/Repository.php',
+	'includes/AiQueue/PromptBuilder.php',
+	'includes/AiQueue/Ajax.php',
 	'includes/Plugin.php',
 ];
 
@@ -67,5 +89,6 @@ register_activation_hook( __FILE__, [ 'SEOB_Activator', 'activate' ] );
 register_deactivation_hook( __FILE__, [ 'SEOB_Activator', 'deactivate' ] );
 
 add_action( 'plugins_loaded', static function () {
+	SEOB_Activator::maybe_upgrade();
 	SEOB_Plugin::instance()->init();
 } );

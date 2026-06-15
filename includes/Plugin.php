@@ -24,16 +24,10 @@ class SEOB_Plugin {
 
 		new SEOB_Admin();
 		new SEOB_Settings_Ajax();
+		new SEOB_Schema_Helper();
+		new SEOB_Status_Ajax();
 
-		$modules = SEOB_Settings::get( SEOB_Settings::GENERAL )['modules'];
-
-		if ( ! empty( $modules['audit'] ) ) {
-			new SEOB_Audit_Ajax();
-		}
-
-		if ( ! empty( $modules['redirects'] ) ) {
-			new SEOB_Redirects_Ajax();
-			new SEOB_Redirect_Manager();
-		}
+		SEOB_Module_Manager::init_active();
+		SEOB_Health_Checks::register();
 	}
 }

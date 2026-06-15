@@ -13,10 +13,10 @@
 		return;
 	}
 
-	saveBtn.addEventListener( 'click', function () {
+	function buildFormData( action ) {
 		var formData = new FormData( form );
-		formData.append( 'action', 'seob_save_settings' );
-		formData.append( 'nonce', seobData.nonce );
+		formData.set( 'action', action );
+		formData.set( 'nonce', seobData.nonce );
 
 		// Checkboxy, které nejsou zaškrtnuté, FormData neobsahuje – doplníme je jako "0".
 		form.querySelectorAll( 'input[type="checkbox"]' ).forEach( function ( checkbox ) {
@@ -25,16 +25,31 @@
 			}
 		} );
 
-		status.textContent = 'Ukládám…';
+		return formData;
+	}
 
-		fetch( seobData.ajaxUrl, {
+	function postAction( action ) {
+		return fetch( seobData.ajaxUrl, {
 			method: 'POST',
 			credentials: 'same-origin',
-			body: formData
+			body: buildFormData( action )
 		} ).then( function ( response ) {
 			return response.json();
-		} ).then( function ( response ) {
-			status.textContent = response.success ? 'Uloženo.' : 'Chyba při ukládání.';
+		} );
+	}
+
+	saveBtn.addEventListener( 'click', function () {
+		status.textContent = 'Ukládám…';
+
+		Promise.all( [
+			postAction( 'seob_save_settings' ),
+			postAction( 'seob_save_ai_settings' )
+		] ).then( function ( responses ) {
+			var success = responses.every( function ( response ) {
+				return response && response.success;
+			} );
+
+			status.textContent = success ? 'Uloženo.' : 'Chyba při ukládání.';
 		} ).catch( function () {
 			status.textContent = 'Chyba při ukládání.';
 		} );

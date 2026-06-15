@@ -103,10 +103,11 @@ class SEOB_Audit_ScanRunner {
 					'url'          => $result['url'],
 					'score'        => $result['score'],
 					'issues_json'  => wp_json_encode( $result['issues'] ),
+					'schema_json'  => wp_json_encode( $result['schema'] ),
 					'content_hash' => $result['content_hash'],
 					'scanned_at'   => current_time( 'mysql' ),
 				],
-				[ '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s' ]
+				[ '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' ]
 			);
 		}
 
@@ -238,7 +239,55 @@ class SEOB_Audit_ScanRunner {
 			[ '%d' ]
 		);
 
+		SEOB_Metrics::record( 'audit', 'score_avg', $score_avg );
+
+		$this->prune_history();
+
 		return $score_avg;
+	}
+
+	/**
+	 * Smaže nejstarší dokončené scany nad limit nastavený v Nastavení
+	 * (`seob_audit_settings.history_limit`), aby tabulky neúnosně nerostly.
+	 */
+	private function prune_history(): void {
+		global $wpdb;
+
+		$limit = (int) SEOB_Settings::get( SEOB_Settings::AUDIT )['history_limit'];
+
+		if ( $limit <= 0 ) {
+			return;
+		}
+
+		$scan_runs_table = SEOB_Database::scan_runs_table();
+
+		$old_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT id FROM {$scan_runs_table} WHERE status = 'done' ORDER BY id DESC LIMIT 1000 OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$limit
+			)
+		);
+
+		foreach ( $old_ids as $old_id ) {
+			$this->delete_scan( (int) $old_id );
+		}
+	}
+
+	/**
+	 * Smaže scan (záznam běhu + všechny audit výsledky) – ruční mazání z historie
+	 * v dashboardu i automatický úklid podle limitu historie.
+	 */
+	public function delete_scan( int $scan_id ): bool {
+		global $wpdb;
+
+		if ( $scan_id <= 0 ) {
+			return false;
+		}
+
+		$wpdb->delete( SEOB_Database::audit_table(), [ 'scan_id' => $scan_id ], [ '%d' ] );
+		$wpdb->delete( SEOB_Database::scan_runs_table(), [ 'id' => $scan_id ], [ '%d' ] );
+
+		return true;
 	}
 
 	/**
@@ -255,6 +304,27 @@ class SEOB_Audit_ScanRunner {
 		);
 
 		return $row ?: null;
+	}
+
+	/**
+	 * Vrátí historii dokončených scanů (nejnovější první) pro výběr v dashboardu.
+	 *
+	 * @return array<int,array{id:int,started_at:string,finished_at:?string,score_avg:?int,urls_total:int}>
+	 */
+	public function get_scan_history( int $limit = 20 ): array {
+		global $wpdb;
+
+		$scan_runs_table = SEOB_Database::scan_runs_table();
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, started_at, finished_at, score_avg, urls_total FROM {$scan_runs_table} WHERE status = 'done' ORDER BY id DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$limit
+			),
+			ARRAY_A
+		);
+
+		return $rows ?: [];
 	}
 
 	/**
@@ -283,11 +353,17 @@ class SEOB_Audit_ScanRunner {
 			ARRAY_A
 		);
 
-		$counts = [ 'critical' => 0, 'warning' => 0, 'recommendation' => 0 ];
+		$previous_issue_types = $this->get_previous_issue_types( $scan_id );
+
+		$counts        = [ 'critical' => 0, 'warning' => 0, 'recommendation' => 0 ];
+		$resolved_total = 0;
 
 		foreach ( $rows as &$row ) {
 			$issues = json_decode( (string) $row['issues_json'], true );
 			$row['issues'] = is_array( $issues ) ? $issues : [];
+
+			$schema = json_decode( (string) $row['schema_json'], true );
+			$row['schema'] = is_array( $schema ) ? $schema : [ 'type' => 'off', 'source' => 'post_type_default' ];
 
 			foreach ( $row['issues'] as $issue ) {
 				if ( isset( $counts[ $issue['severity'] ] ) ) {
@@ -295,8 +371,19 @@ class SEOB_Audit_ScanRunner {
 				}
 			}
 
-			$row['title']     = get_the_title( (int) $row['object_id'] );
-			$row['edit_link'] = (string) get_edit_post_link( (int) $row['object_id'], 'raw' );
+			$current_types = wp_list_pluck( $row['issues'], 'type' );
+			$object_id     = (int) $row['object_id'];
+			$resolved      = [];
+
+			if ( isset( $previous_issue_types[ $object_id ] ) ) {
+				$resolved = array_values( array_diff( $previous_issue_types[ $object_id ], $current_types ) );
+			}
+
+			$row['resolved_issues'] = $resolved;
+			$resolved_total         += count( $resolved );
+
+			$row['title']     = get_the_title( $object_id );
+			$row['edit_link'] = (string) get_edit_post_link( $object_id, 'raw' );
 		}
 		unset( $row );
 
@@ -306,8 +393,47 @@ class SEOB_Audit_ScanRunner {
 		);
 
 		return [
-			'summary' => array_merge( (array) $run, [ 'counts' => $counts ] ),
+			'summary' => array_merge( (array) $run, [ 'counts' => $counts, 'resolved_total' => $resolved_total ] ),
 			'rows'    => $rows,
 		];
+	}
+
+	/**
+	 * Vrátí mapu `object_id => [typy nálezů]` z posledního dokončeného scanu
+	 * předcházejícího danému `$scan_id`. Použije se pro zjištění, které nálezy
+	 * byly od minulého scanu opravené.
+	 *
+	 * @return array<int,array<int,string>>
+	 */
+	private function get_previous_issue_types( int $scan_id ): array {
+		global $wpdb;
+
+		$audit_table     = SEOB_Database::audit_table();
+		$scan_runs_table = SEOB_Database::scan_runs_table();
+
+		$previous_scan_id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$scan_runs_table} WHERE status = 'done' AND id < %d ORDER BY id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$scan_id
+			)
+		);
+
+		if ( ! $previous_scan_id ) {
+			return [];
+		}
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT object_id, issues_json FROM {$audit_table} WHERE scan_id = %d", $previous_scan_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			ARRAY_A
+		);
+
+		$map = [];
+
+		foreach ( $rows as $row ) {
+			$issues = json_decode( (string) $row['issues_json'], true );
+			$map[ (int) $row['object_id'] ] = is_array( $issues ) ? wp_list_pluck( $issues, 'type' ) : [];
+		}
+
+		return $map;
 	}
 }
