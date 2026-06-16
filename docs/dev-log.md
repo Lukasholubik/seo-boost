@@ -7,6 +7,20 @@
 
 ## Záznamy
 
+### 2026-06-16 (update 9) – M11: Oprava detekce konfliktu RM Free vs RM Pro
+
+**Problém:** RM Free Schema modul LocalBusiness JSON-LD také umí → původní dokumentace tvrdila, že RM Free konflikt netvoří, což je nepřesné.
+
+**Změny:**
+- `includes/LocalSeo/Frontend.php` – `has_rank_math_local_seo()` přejmenován (sémantika zachována, detekuje jen RM Pro Local SEO modul); přidány dvě nové metody:
+  - `has_rank_math_free()` – vrátí true pokud RM Free aktivní (ale ne RM Pro Local SEO)
+  - `rank_math_free_has_local_business_schema()` – čte option `rank_math_titles` a hledá schema_type = LocalBusiness podtyp
+- `templates/admin/page-local-seo.php` – tři úrovně banneru: error (RM Pro, auto-deaktivace), warning (RM Free s LocalBusiness nakonfigurovaným), info (RM Free aktivní bez LocalBusiness)
+- `templates/admin/page-local-seo.php` – tabulka konfliktů rozšířena: RM Free rozdělen na dva scénáře (bez/s LocalBusiness), přidána instrukce Ctrl+U ověření
+- `includes/Health/HealthChecks.php` – přidán check `local_seo_rm_free_conflict` (warning) pro RM Free s LocalBusiness schématem
+
+---
+
 ### 2026-06-16 (update 8) – M11: Rozšíření dokumentace v admin UI
 
 - `templates/admin/page-local-seo.php` – `<details>` dokumentace přepsána na kompletní průvodce:

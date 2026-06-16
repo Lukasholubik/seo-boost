@@ -149,15 +149,65 @@ class SEOB_LocalSeo_Frontend {
 	}
 
 	/**
-	 * Detekuje, zda Rank Math Local SEO modul výstup hreflang/schématu převzal.
+	 * Vrátí true jen pro Rank Math Pro Local SEO modul – ten přebírá LocalBusiness
+	 * automaticky a globálně. V takovém případě náš výstup zastavíme.
+	 *
+	 * Rank Math Free Schema modul sám o sobě NENÍ automatický konflikt – uživatel
+	 * ho mohl mít aktivní bez jakéhokoli LocalBusiness nastavení. Výstup proto
+	 * neblokujeme; admin UI zobrazí informační varování.
 	 */
 	public static function has_rank_math_local_seo(): bool {
+		// Rank Math Pro – Local SEO modul (třída existuje jen v Pro verzi)
 		if ( class_exists( 'RankMath\Modules\LocalSeo\LocalSeo' ) ) {
 			return true;
 		}
 
+		// Alternativní detekce přes seznam aktivních modulů
 		$active = get_option( 'rank_math_modules', [] );
 		return is_array( $active ) && in_array( 'local-seo', $active, true );
+	}
+
+	/**
+	 * Vrátí true, pokud je Rank Math Free aktivní.
+	 * RM Free Schema modul umí LocalBusiness, ale jen pokud ho uživatel
+	 * explicitně nastaví – proto jde o varování, ne automatické zablokování.
+	 */
+	public static function has_rank_math_free(): bool {
+		return class_exists( 'RankMath' ) && ! self::has_rank_math_local_seo();
+	}
+
+	/**
+	 * Vrátí true, pokud RM Free má pro daný post type nastaven typ schématu
+	 * LocalBusiness (nebo jeho podtyp) jako výchozí hodnotu.
+	 * Detekujeme přes option rank_math_titles kde RM ukládá schema_type per post type.
+	 */
+	public static function rank_math_free_has_local_business_schema(): bool {
+		if ( ! self::has_rank_math_free() ) {
+			return false;
+		}
+
+		$titles = get_option( 'rank_math_titles', [] );
+
+		if ( ! is_array( $titles ) ) {
+			return false;
+		}
+
+		$local_business_types = [
+			'local-business', 'localbusiness', 'restaurant', 'autorepair',
+			'dentist', 'physician', 'hotel', 'realestate',
+		];
+
+		foreach ( $titles as $key => $value ) {
+			if ( strpos( $key, 'schema_type' ) === false ) {
+				continue;
+			}
+
+			if ( is_string( $value ) && in_array( strtolower( $value ), $local_business_types, true ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

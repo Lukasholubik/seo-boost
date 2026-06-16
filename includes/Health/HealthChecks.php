@@ -547,14 +547,25 @@ class SEOB_Health_Checks {
 		if ( \SEOB_LocalSeo_Frontend::has_rank_math_local_seo() ) {
 			$checks[] = [
 				'id'           => 'local_seo_rm_conflict',
-				'label'        => 'Rank Math Local SEO',
+				'label'        => 'Rank Math Pro Local SEO',
 				'status'       => 'critical',
-				'message'      => 'Rank Math Local SEO modul je aktivní a spravuje LocalBusiness schéma. Tento modul je automaticky deaktivován, aby nevznikly duplicitní JSON-LD bloky.',
+				'message'      => 'Rank Math Pro Local SEO modul je aktivní a spravuje LocalBusiness schéma automaticky. Tento modul je automaticky deaktivován, aby nevznikly duplicitní JSON-LD bloky.',
 				'action_label' => 'Otevřít Local SEO nastavení',
 				'action_url'   => admin_url( 'admin.php?page=seob-local-seo' ),
 			];
 
 			return $checks;
+		}
+
+		if ( \SEOB_LocalSeo_Frontend::rank_math_free_has_local_business_schema() ) {
+			$checks[] = [
+				'id'           => 'local_seo_rm_free_conflict',
+				'label'        => 'Rank Math Free – LocalBusiness schéma',
+				'status'       => 'warning',
+				'message'      => 'Rank Math Free má nakonfigurované LocalBusiness schéma (Títuly a meta → typ obsahu → Schema). Zkontrolujte, zda na stránce nevznikají duplicitní JSON-LD bloky – ověřte ve zdrojovém kódu stránky (Ctrl+U, hledejte „LocalBusiness").',
+				'action_label' => 'Otevřít Local SEO nastavení',
+				'action_url'   => admin_url( 'admin.php?page=seob-local-seo' ),
+			];
 		}
 
 		if ( empty( $s['business_name'] ) ) {

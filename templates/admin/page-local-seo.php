@@ -29,8 +29,22 @@ $pages = get_pages( [ 'post_status' => 'publish', 'sort_column' => 'post_title' 
 	<?php if ( $conflict ) : ?>
 		<div class="notice notice-error" id="seob-local-seo-conflict-banner">
 			<p>
-				<strong><?php esc_html_e( 'Konflikt detekován:', 'seo-boost' ); ?></strong>
-				<?php esc_html_e( 'Rank Math Local SEO modul je aktivní a spravuje LocalBusiness schéma za tebe. Tento modul je automaticky deaktivován, aby nevznikly duplicitní JSON-LD bloky. Pokud chceš používat tento modul místo Rank Math Local SEO, deaktivuj Rank Math Local SEO modul v Rank Math → Nastavení → Moduly.', 'seo-boost' ); ?>
+				<strong><?php esc_html_e( 'Automaticky deaktivováno – Rank Math Pro Local SEO:', 'seo-boost' ); ?></strong>
+				<?php esc_html_e( 'Rank Math Pro Local SEO modul je aktivní a spravuje LocalBusiness schéma automaticky a globálně. Tento modul proto nevkládá nic, aby nevznikly duplicitní JSON-LD bloky. Pokud chceš používat tento modul místo RM Pro Local SEO, deaktivuj Local SEO modul v Rank Math → Nastavení → Moduly.', 'seo-boost' ); ?>
+			</p>
+		</div>
+	<?php elseif ( SEOB_LocalSeo_Frontend::rank_math_free_has_local_business_schema() ) : ?>
+		<div class="notice notice-warning" id="seob-local-seo-rm-free-banner">
+			<p>
+				<strong><?php esc_html_e( 'Pozor – Rank Math Free má nakonfigurované LocalBusiness schéma:', 'seo-boost' ); ?></strong>
+				<?php esc_html_e( 'Rank Math Free Schema modul má pro jeden nebo více typů obsahu nastaven typ schématu LocalBusiness (nebo jeho podtyp). Pokud je tento modul také aktivní, vzniknou na stránce dvě LocalBusiness JSON-LD schémata – to je chyba. Ověřte kliknutím na „Náhled JSON-LD" a pak zkontrolujte výstup stránky v Google Rich Results Test. Vypněte buď schéma v Rank Math (Rank Math → Títuly a meta → typ obsahu → záložka Schema) nebo deaktivujte tento modul.', 'seo-boost' ); ?>
+			</p>
+		</div>
+	<?php elseif ( SEOB_LocalSeo_Frontend::has_rank_math_free() ) : ?>
+		<div class="notice notice-info" id="seob-local-seo-rm-free-info">
+			<p>
+				<strong><?php esc_html_e( 'Rank Math Free je aktivní:', 'seo-boost' ); ?></strong>
+				<?php esc_html_e( 'Rank Math Free Schema modul LocalBusiness JSON-LD také umí – globálně (Rank Math → Títuly a meta → typ obsahu → záložka Schema) nebo per-stránka (záložka „Rich Snippets" v editoru). Pokud tuto funkci v RM zatím nepoužíváte, je vše v pořádku a tento modul vloží schéma za vás. Pokud v RM LocalBusiness schéma máte nastavené, ověřte výstup stránky v Google Rich Results Test, zda nevznikají duplicity.', 'seo-boost' ); ?>
 			</p>
 		</div>
 	<?php endif; ?>
@@ -649,44 +663,52 @@ $pages = get_pages( [ 'post_status' => 'publish', 'sort_column' => 'post_title' 
 
 			<h3><?php esc_html_e( 'Konflikty s jinými pluginy', 'seo-boost' ); ?></h3>
 			<p>
-				<?php esc_html_e( 'Tento modul je navržen jako doplněk Rank Math Free – nepřekrývá žádnou jeho funkcionalitu. Konflikty mohou nastat jen s pluginy, které LocalBusiness schéma rovněž produkují:', 'seo-boost' ); ?>
+				<?php esc_html_e( 'Klíčové je pochopit rozdíl mezi Rank Math Free a Rank Math Pro. RM Free Schema modul LocalBusiness umí, ale jen pokud ho explicitně nastavíte. RM Pro Local SEO modul ho nastavuje automaticky a globálně – to je pravý konflikt.', 'seo-boost' ); ?>
 			</p>
 			<table class="wp-list-table widefat fixed striped seob-table">
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'Plugin', 'seo-boost' ); ?></th>
 						<th><?php esc_html_e( 'Stav', 'seo-boost' ); ?></th>
-						<th><?php esc_html_e( 'Co to znamená', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Co to znamená v praxi', 'seo-boost' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
-						<td>Rank Math Free</td>
+						<td><strong>Rank Math Free</strong><br><small><?php esc_html_e( 'bez nastaveného LocalBusiness schématu', 'seo-boost' ); ?></small></td>
 						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'RM Free Local SEO modul neobsahuje. Plně kompatibilní.', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Nejběžnější scénář. RM Free se stará o meta tagy a jiné typy schémat – LocalBusiness vloží tento modul. V pořádku.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
-						<td>Rank Math Pro (Local SEO modul)</td>
-						<td style="color:red;">&#9888; <?php esc_html_e( 'Konflikt', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'RM Pro spravuje LocalBusiness schéma. Tento modul se automaticky deaktivuje a nevloží nic – RM Pro má přednost. Pokud chcete používat tento modul, deaktivujte Local SEO modul v Rank Math Pro.', 'seo-boost' ); ?></td>
+						<td><strong>Rank Math Free</strong><br><small><?php esc_html_e( 's nastaveným LocalBusiness schématem (Títuly a meta → Schema)', 'seo-boost' ); ?></small></td>
+						<td style="color:orange;">&#9888; <?php esc_html_e( 'Pozor – ověřte', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'RM Free může LocalBusiness JSON-LD vkládat také. Vzniknou dvě schémata na jedné stránce. Ověřte v Google Rich Results Test a vypněte jedno z nich – buď schéma v RM Free (Rank Math → Títuly a meta → typ obsahu → záložka Schema → přepněte na None) nebo deaktivujte tento modul.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
-						<td>Yoast SEO Free</td>
+						<td><strong>Rank Math Pro</strong><br><small><?php esc_html_e( 'Local SEO modul aktivní', 'seo-boost' ); ?></small></td>
+						<td style="color:red;">&#10007; <?php esc_html_e( 'Konflikt – auto. deaktivováno', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'RM Pro Local SEO modul spravuje LocalBusiness schéma automaticky, globálně a s pokročilými funkcemi (více poboček, store locator). Tento modul se sám deaktivuje a nevloží nic. Pokud přesto chcete tento modul, deaktivujte Local SEO modul v RM Pro → Nastavení → Moduly.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><strong>Yoast SEO Free</strong></td>
 						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'Yoast Free nevkládá LocalBusiness. Plně kompatibilní.', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Yoast Free LocalBusiness nevkládá. Plně kompatibilní.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
-						<td>Yoast Local SEO (premium plugin)</td>
-						<td style="color:orange;">&#9888; <?php esc_html_e( 'Pozor', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'Yoast Local SEO je samostatný placený plugin vkládající LocalBusiness. Pokud ho máte aktivní, deaktivujte tento modul, abyste neměli dvě schémata najednou.', 'seo-boost' ); ?></td>
+						<td><strong>Yoast Local SEO</strong><br><small><?php esc_html_e( 'samostatný premium plugin', 'seo-boost' ); ?></small></td>
+						<td style="color:orange;">&#9888; <?php esc_html_e( 'Pozor – ověřte', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Yoast Local SEO plugin LocalBusiness JSON-LD produkuje. Pokud ho máte, deaktivujte tento modul.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
-						<td>WPML, Polylang</td>
+						<td><strong>WPML, Polylang, TranslatePress</strong></td>
 						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'Vícejazyčné pluginy schéma neovlivňují. JSON-LD se vloží pro všechny jazykové verze stránky stejně.', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Vícejazyčné pluginy schéma neovlivňují.', 'seo-boost' ); ?></td>
 					</tr>
 				</tbody>
 			</table>
+			<p class="description">
+				<?php esc_html_e( 'Jak ověřit, zda nemáte duplicitní schéma: otevřete zdrojový kód stránky (Ctrl+U) a vyhledejte „LocalBusiness". Pokud se výsledek objeví dvakrát, máte duplicitu.', 'seo-boost' ); ?>
+			</p>
 
 			<hr style="margin:24px 0;">
 
