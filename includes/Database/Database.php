@@ -63,4 +63,19 @@ class SEOB_Database {
 		global $wpdb;
 		return $wpdb->prefix . 'seo_booster_psi_summary';
 	}
+
+	public static function internal_links_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_internal_links';
+	}
+
+	public static function link_suggestions_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_link_suggestions';
+	}
+
+	public static function link_scans_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_link_scans';
+	}
 }

@@ -52,6 +52,12 @@ class SEOB_Module_Manager {
 			'classes'     => [ 'SEOB_PageSpeed_Ajax' ],
 			'depends_on'  => [],
 		],
+		'internal-links' => [
+			'label'       => 'Interní prolinkování',
+			'description' => 'Indexuje interní odkazy, hledá osamocené (orphan) stránky a navrhuje prolinkování na základě podobnosti obsahu.',
+			'classes'     => [ 'SEOB_InternalLinks_Ajax', 'SEOB_InternalLinks_Indexer', 'SEOB_InternalLinks_MetaBox' ],
+			'depends_on'  => [],
+		],
 	];
 
 	/**

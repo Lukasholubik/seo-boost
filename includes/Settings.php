@@ -34,6 +34,7 @@ class SEOB_Settings {
 						'gsc-insights'   => 1,
 						'ai-queue'       => 0,
 						'pagespeed'      => 0,
+						'internal-links' => 0,
 					],
 				];
 

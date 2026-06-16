@@ -92,6 +92,8 @@ class SEOB_Health_Checks {
 				return self::ai_queue_checks();
 			case 'pagespeed':
 				return self::pagespeed_checks();
+			case 'internal-links':
+				return self::internal_links_checks();
 			default:
 				return [];
 		}
@@ -417,6 +419,72 @@ class SEOB_Health_Checks {
 				'action_url'   => admin_url( 'admin.php?page=seob-pagespeed' ),
 			],
 		];
+	}
+
+	private static function internal_links_checks(): array {
+		$runner = new SEOB_InternalLinks_ScanRunner();
+		$history = $runner->get_scan_history( 1 );
+
+		if ( empty( $history ) ) {
+			return [
+				[
+					'id'           => 'internal_links_last_scan',
+					'label'        => 'Poslední reindex',
+					'status'       => 'critical',
+					'message'      => 'Zatím nebyl spuštěn žádný reindex interních odkazů.',
+					'action_label' => 'Spustit reindex',
+					'action_url'   => admin_url( 'admin.php?page=seob-internal-links' ),
+				],
+			];
+		}
+
+		$checks   = [];
+		$last_run = $history[0];
+		$age_days = ( time() - strtotime( $last_run['finished_at'] ) ) / DAY_IN_SECONDS;
+
+		if ( $age_days > 30 ) {
+			$checks[] = [
+				'id'           => 'internal_links_last_scan',
+				'label'        => 'Poslední reindex',
+				'status'       => 'warning',
+				'message'      => sprintf( 'Poslední reindex je starší než měsíc (%s).', mysql2date( 'j. n. Y H:i', $last_run['finished_at'] ) ),
+				'action_label' => 'Spustit nový reindex',
+				'action_url'   => admin_url( 'admin.php?page=seob-internal-links' ),
+			];
+		} else {
+			$checks[] = [
+				'id'           => 'internal_links_last_scan',
+				'label'        => 'Poslední reindex',
+				'status'       => 'good',
+				'message'      => sprintf( 'Poslední reindex dokončen %s.', mysql2date( 'j. n. Y H:i', $last_run['finished_at'] ) ),
+				'action_label' => null,
+				'action_url'   => null,
+			];
+		}
+
+		$orphans = SEOB_Metrics::get_latest( 'internal-links', 'orphans_count' );
+
+		if ( null !== $orphans && $orphans > 0 ) {
+			$checks[] = [
+				'id'           => 'internal_links_orphans',
+				'label'        => 'Osamocené stránky',
+				'status'       => 'warning',
+				'message'      => sprintf( '%d osamocených stránek (bez příchozího interního odkazu).', (int) $orphans ),
+				'action_label' => 'Zobrazit Interní prolinkování',
+				'action_url'   => admin_url( 'admin.php?page=seob-internal-links' ),
+			];
+		} else {
+			$checks[] = [
+				'id'           => 'internal_links_orphans',
+				'label'        => 'Osamocené stránky',
+				'status'       => 'good',
+				'message'      => 'Žádné osamocené stránky.',
+				'action_label' => null,
+				'action_url'   => null,
+			];
+		}
+
+		return $checks;
 	}
 
 	private static function pdf_checks(): array {

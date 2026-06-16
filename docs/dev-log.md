@@ -7,6 +7,173 @@
 
 ## Záznamy
 
+### 2026-06-16 (update 4) – M6: SEO zdraví prolinkování v admin přehledu (Interní prolinkování)
+
+**ScanRunner.php `get_results()`:**
+- Bulk SQL query na `post_content` pro všechna publikovaná ID → výpočet word_count bez N+1 dotazů
+- Pro každou stránku přidány klíče: `word_count`, `link_min`, `link_max`, `link_status` ('ok' / 'low' / 'high')
+- Nové summary klíče v return: `link_health_score` (% stránek ok), `link_ok_count`, `link_low_count`, `link_high_count`
+
+**page-internal-links.php:**
+- Přidán 4. summary box „Zdraví prolinkování" (`id="seob-links-summary-health"` + detail `seob-links-summary-health-detail`)
+
+**internal-links.js:**
+- `renderResults()`: aktualizuje health score box (zelená ≥80 %, oranžová ≥50 %, červená jinak) + detail „X ok · Y málo · Z příliš"
+- `renderPageGroups()`: 4. sloupec „Stav odkazů" s barevným indikátorem (✓ V pořádku / ↑ Chybí X / ↓ Přebývá X)
+- Řazení v každé skupině: low nahoře, pak high, pak ok (problémy jsou ihned viditelné)
+- Header skupiny: „⚠ N problém" pokud existují stránky s low/high statusem
+- Nová funkce `linkStatusCell(page)` – sdílená helper
+
+---
+
+### 2026-06-16 (update 3) – M6: Dynamický SEO monitoring počtu odkazů v metaboxu
+
+**Odstraněno:**
+- Sekce „Navrhované odkázání z:" z metaboxu (redundantní – uživatel si návrhy načte přes checklist níže)
+- Statická sekce `<details>` SEO doporučení (obecný text nahrazen konkrétním indikátorem)
+
+**Přidáno – dynamický indikátor počtu odkazů:**
+- `MetaBox::render()`: počítá délku článku (`preg_split /\s+/u` na `wp_strip_all_tags` obsahu)
+- Vzorec: `min = max(1, round(slov/500))`, `max = max(2, round(slov/200))` → odpovídá 2–5 linkům na 1000 slov
+- Výsledek: zelená ✓ (v pořádku) / červená ↑ Chybí X (pod min) / oranžová ↓ Přebývá X (nad max)
+- Text je konkrétní: „Chybí 2 odkazů (doporučeno 2–5 pro ~1000 slov)" apod.
+- `MetaBox::compute_link_status()` – private metoda, vrací `[css_color, text]`
+- `<p id="seob-metabox-counts">` má nové `data-link-min`, `data-link-max`, `data-word-count` atributy
+- `<span id="seob-metabox-link-status">` zobrazuje indikátor, aktualizuje se i po vložení linků bez reload
+
+**JS (`metabox-internal-links.js`):**
+- Nová funkce `updateLinkStatus(outlinks)` – čte `data-*` z `seob-metabox-counts`, přepočítá status
+- Volá se po úspěšném insertu (vedle aktualizace `seob-metabox-outlinks`)
+
+---
+
+### 2026-06-16 (update) – M6: Skupiny na stránce Interní prolinkování + přepracovaný metabox (výběr linků)
+
+**Stránka Interní prolinkování – skupiny podle post type (dynamické):**
+- `ScanRunner::get_results()` nově vrací `orphan_groups` a `page_groups` (seskupení `orphans`/`pages` podle `post_type`, label z `get_post_type_label()` = WP `labels->name`, seřazeno sestupně počtem položek)
+- `page-internal-links.php`: flat `<table>` nahrazeny `<div id="seob-links-orphan-groups">` a `<div id="seob-links-page-groups">` – šablony `<template>` odstraněny
+- `internal-links.js`: přidány `renderOrphanGroups(groups)` a `renderPageGroups(groups)` – reuse CSS tříd Audit Dashboardu (`.seob-audit-group`, `.seob-group-toggle`, `.seob-group-body`, `.seob-group-count`), toggle tlačítkem s `.is-expanded`
+
+**Metabox editor – přepracovaný 2-fázový flow výběru linků:**
+- Tlačítko přejmenováno z „Vložit linky" → **„Najít návrhy linků"**
+- Fáze 1: klik → AJAX `seob_links_find` → vrátí max 10 kandidátů s kontextovým výňatkem (kde se titulek nachází v textu)
+- Fáze 2: zobrazí checklist – každý kandidát má checkbox (výchozí: zaškrtnutý), název a kontextový výňatek s KW zvýrazněným `<mark>`, tlačítka „Vybrat vše/Zrušit výběr" + „Vložit vybrané (X)"
+- Fáze 3: klik „Vložit vybrané" → AJAX `seob_links_insert` s `target_ids=JSON`, vloží jen vybrané, vložené položky se v checklistu zobrazí jako přeškrtnuté
+- Elementor: varování hned při zobrazení checklistu, druhý klik na vložení vyžaduje potvrzení
+- `LinkInserter::find_with_context(WP_Post, max=10)` – nová metoda s kontextem
+- `LinkInserter::get_candidates()` – parametr `$max=20` (dříve hardcoded)
+- `LinkInserter::insert()` – nový parametr `$only_ids[]` pro filtrování výběru
+- `Ajax.php` – nový endpoint `seob_links_find`, endpoint `seob_links_insert` přijímá `target_ids` (JSON)
+
+**php -l:** OK na všech souborech. Neotestováno v prohlížeči.
+
+---
+
+### 2026-06-16 – M6: Tlačítko „Vložit linky" v metaboxu editoru
+
+**Nová funkce:** Automatické vkládání interních odkazů do obsahu článku přímo z editoru.
+
+**Nové soubory:**
+- `includes/InternalLinks/LinkInserter.php` – třída `SEOB_InternalLinks_LinkInserter`
+  - `get_candidates(WP_Post)` – hledá orphan stránky (0 příchozích inlinks), jejichž titulek se vyskytuje v `post_content`; max 300 kandidátů, limit 2× max_links
+  - `inject_links(string, array)` – chrání existující `<a>` tagy a `<h1-6>` nadpisy placeholders, nahradí první výskyt titulku za `<a href>`, max 3 linky
+  - `insert(int)` – orchestruje, volá `wp_update_post()`, vrátí seznam vložených/přeskočených
+  - `is_elementor(int)` – detekce Elementor stránky přes `_elementor_edit_mode` meta
+- `assets/admin/js/metabox-internal-links.js` – metabox JS pro tlačítko
+
+**Upravené soubory:**
+- `includes/InternalLinks/Ajax.php` – nový endpoint `wp_ajax_seob_links_insert` → `insert()`: nonce + `edit_post` cap check, Elementor guard (bez `force=1` vrací `is_elementor:true`), volá `LinkInserter::insert()`
+- `includes/InternalLinks/MetaBox.php` – `enqueue_scripts()` (jen na `post.php`/`post-new.php` pro auditované post typy), tlačítko `#seob-links-insert-btn` s `data-post-id`, výsledkový `<p>`
+- `seo-boost.php` – `LinkInserter.php` přidán do `$seob_files` před `MetaBox.php`
+
+**UX flow:**
+1. Klasický WP editor / Gutenberg: 1 klik → vloží max 3 linky → zobrazí „Vloženo X odkazů (‚KW1', ‚KW2'). Uloženo. Reloadujte editor..."
+2. Elementor stránka: 1. klik → varování (žlutý text + tlačítko změní label na „Potvrdit vložení (Elementor)") → 2. klik potvrdí `force=1`
+
+**Logika kandidátů:** Orphan stránky = `post_status='publish'`, žádný záznam v `internal_links` jako `target_id`. Titulek musí být ≥ 3 znaky a musí se vyskytovat v `post_content` (`mb_stripos`). Vyloučeny Elementor/JetEngine builder typy.
+
+**php -l:** OK na všech 3 souborech. Neotestováno v prohlížeči.
+
+---
+
+### 2026-06-15 (dodatek) – Oprava aktivace modulu `internal-links` (špatný option klíč)
+
+Po smoke testu se v menu SEO Booster neobjevila položka „Interní
+prolinkování“. Příčina: smoke-test skript zapsal
+`modules.internal-links=1` do neexistujícího option klíče
+`seob_settings_general` – `is_active()` čte `SEOB_Settings::GENERAL`, což
+je `seob_general_settings`. Opraveno jednorázovým skriptem (zápis do
+správného klíče), `is_active('internal-links')` nyní vrací `true`. Čeká se
+na potvrzení, že položka menu je v UI viditelná – viz `STATE.md` →
+„DALŠÍ KROK“.
+
+### 2026-06-15 – M6: Interní prolinkování (Internal Link Assistant + orphan pages) – nový modul `internal-links`
+
+Nový modul (výchozí vypnuto, `modules.internal-links`) – indexuje interní
+link graf webu, hledá osamocené (orphan) stránky a navrhuje prolinkování
+přes **lokální TF-IDF + kosinovou podobnost** (bez externí AI/API).
+
+- **3 nové DB tabulky** (`SEOB_DB_VERSION` 0.5.0 → 0.6.0, `SEOB_VERSION`
+  0.4.0 → 0.5.0): `seo_booster_internal_links` (aktuální link graf),
+  `seo_booster_link_suggestions` (top 3 návrhy z posledního reindexu),
+  `seo_booster_link_scans` (historie běhů). Helpery v
+  `includes/Database/Database.php`, `CREATE TABLE` v
+  `includes/Activator.php::create_tables()`.
+- **`includes/InternalLinks/Extractor.php`** – 3-strategie extrakce obsahu
+  (`_elementor_data` → `post_content` → meta pole, stejný vzor jako
+  `Audit/Scanner.php`). `extract_links()` najde interní `<a href>` přes
+  `url_to_postid()`, `extract_text()` vrátí čistý text pro TF-IDF. Čistá
+  statická metoda `extract_internal_links_from_html()` (jen `DOMDocument` +
+  `parse_url`) je testovatelná bez WP.
+- **`includes/InternalLinks/Similarity.php`** – čisté funkce bez DB/WP:
+  `tokenize()` (diakritika pryč, min. 3 znaky, CZ/EN stoplist),
+  `build_tfidf()`, `cosine()`, `top_similar()`.
+- **`includes/InternalLinks/ScanRunner.php`** – dávkový reindex (vzor
+  `PageSpeed/ScanRunner.php`): `start_scan()`/`process_batch()` přepočítají
+  link graf po dávkách, `finalize_scan()` přepočte TF-IDF vektory pro
+  všechny indexované stránky, přepíše `link_suggestions` (top 3 pro každou
+  stránku, vyloučeny už odkazované) a zapíše metriky `orphans_count` a
+  `avg_inlinks` přes `SEOB_Metrics::record()`. `get_results()` vrací souhrn
+  + tabulku orphan stránek (s návrhy) + tabulku všech stránek.
+- **`includes/InternalLinks/Indexer.php`** – `save_post` hook udržuje
+  `internal_links` aktuální mezi reindexy (`link_suggestions` se přepočítá
+  až při dalším plném reindexu).
+- **`includes/InternalLinks/MetaBox.php`** – postranní box v editoru
+  "Interní prolinkování" (počty příchozích/odchozích odkazů + top 3 návrhy,
+  čistě synchronní DB čtení).
+- **`includes/InternalLinks/Ajax.php`** – `seob_links_start/batch/results/
+  history/active`, stejný `check_request()` vzor jako PageSpeed.
+- **Health check** `SEOB_Health_Checks::internal_links_checks()` –
+  kritická bez dokončeného reindexu, varování při reindexu staršímu 30 dní
+  nebo `orphans_count > 0`, jinak OK.
+- **Admin UI** – nová stránka „Interní prolinkování“ (`seob-internal-links`):
+  tlačítko reindex + progress bar, souhrnné karty (počet stránek, orphans s
+  trendem, průměr inlinks s trendem), tabulky „Osamocené stránky“ a „Všechny
+  stránky“ (`templates/admin/page-internal-links.php`,
+  `assets/admin/js/internal-links.js`, drobná `.seob-summary-row` v
+  `admin.css`).
+- **Registrace**: `ModuleManager` (`depends_on: []`), `Settings`
+  (`modules.internal-links => 0`), `Admin.php` (submenu + enqueue), 6 nových
+  souborů v `seo-boost.php`.
+- **Dokumentace + testy**: `docs/modules/internal-links.md` (4 sekce dle
+  vzoru `gsc-insights.md`, vč. limitů TF-IDF). Nové
+  `tests/Unit/InternalLinks/ExtractorTest.php` a `SimilarityTest.php` –
+  **56/56 testů OK** (bylo 38, +18 nových).
+- **Oprava při wp-cli smoke testu**: sloupec `rank` v
+  `seo_booster_link_suggestions` je od MySQL 8.0.2 rezervované slovo →
+  `dbDelta()` tuto tabulku tiše nevytvořil (ostatní 2 nové tabulky vznikly
+  bez problému). Přejmenováno na `rank_order` (`Activator.php`,
+  `ScanRunner.php`, `MetaBox.php`).
+- **wp-cli smoke test na reálné DB (87 položek)**: aktivován modul, plný
+  reindex `87/87`, `orphans_count=82`, `avg_inlinks=0.11`. Návrhy dávají
+  smysl – např. orphan stránka „CTA“ (slovíček pojmů) navrhuje odkázat z
+  „CTA tlačítko“ a „CTA na webu“ (score 0.31/0.30). Health check: `critical`
+  → po reindexu `good` (poslední reindex) + `warning` (82 osamocených
+  stránek). Modul je na test webu nyní **aktivní**.
+- `php -l` OK na všech nových/upravených souborech, `composer test` 56/56
+  OK. Vizuální test v prohlížeči (dashboard tabulky + editor metabox)
+  zatím neproběhl.
+
 ### 2026-06-15 – PageSpeed Insights: souhrnný přehled celého webu (mobil/desktop, průměr přes všechny typy obsahu)
 
 Uživatel chtěl nad jednotlivými skupinami podle typu obsahu i jeden

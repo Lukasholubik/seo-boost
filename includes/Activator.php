@@ -54,6 +54,9 @@ class SEOB_Activator {
 		$psi_runs_table      = SEOB_Database::psi_runs_table();
 		$psi_results_table   = SEOB_Database::psi_results_table();
 		$psi_summary_table   = SEOB_Database::psi_summary_table();
+		$internal_links_table   = SEOB_Database::internal_links_table();
+		$link_suggestions_table = SEOB_Database::link_suggestions_table();
+		$link_scans_table       = SEOB_Database::link_scans_table();
 
 		$sql = "CREATE TABLE {$audit_table} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -211,6 +214,37 @@ class SEOB_Activator {
 			sample_object_ids_json LONGTEXT,
 			PRIMARY KEY  (id),
 			KEY idx_run_type (run_id, object_type, strategy)
+		) {$charset_collate};
+
+		CREATE TABLE {$internal_links_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			source_id BIGINT UNSIGNED NOT NULL,
+			source_type VARCHAR(20) NOT NULL,
+			target_id BIGINT UNSIGNED NOT NULL,
+			link_text VARCHAR(255) DEFAULT '',
+			PRIMARY KEY  (id),
+			KEY idx_source (source_id),
+			KEY idx_target (target_id)
+		) {$charset_collate};
+
+		CREATE TABLE {$link_suggestions_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			source_id BIGINT UNSIGNED NOT NULL,
+			suggested_id BIGINT UNSIGNED NOT NULL,
+			score DECIMAL(5,4) DEFAULT 0,
+			rank_order TINYINT UNSIGNED DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY idx_source (source_id)
+		) {$charset_collate};
+
+		CREATE TABLE {$link_scans_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			started_at DATETIME NOT NULL,
+			finished_at DATETIME DEFAULT NULL,
+			posts_total INT UNSIGNED DEFAULT 0,
+			posts_done INT UNSIGNED DEFAULT 0,
+			status VARCHAR(10) NOT NULL DEFAULT 'running',
+			PRIMARY KEY  (id)
 		) {$charset_collate};";
 
 		dbDelta( $sql );

@@ -5,9 +5,84 @@
 
 ---
 
-## 🟢 ZAČNI ZDE – konec session 2026-06-15 (NEPUSHNUTO)
+## 🟢 ZAČNI ZDE – session 2026-06-16 (NEPUSHNUTO)
 
-**Nově: souhrnný přehled celého webu na stránce PageSpeed Insights.**
+**Nově: tlačítko „Vložit linky" v metaboxu editoru (M6 rozšíření).**
+`includes/InternalLinks/LinkInserter.php` (nový), `Ajax.php` (+`seob_links_insert`),
+`MetaBox.php` (+tlačítko+enqueue), `assets/admin/js/metabox-internal-links.js` (nový).
+
+Flow: 1 klik na „Vložit linky" → AJAX najde orphan stránky, jejichž titulek je v obsahu článku
+→ vloží max 3 `<a>` odkazů (první výskyt, chrání existující `<a>` a nadpisy) → `wp_update_post`.
+Elementor stránky: 1. klik = varování, 2. klik = potvrzení (`force=1`).
+`php -l` OK, **neotestováno v prohlížeči.**
+
+**DALŠÍ KROK:**
+1. Ověřit v prohlížeči menu položku „Interní prolinkování" (předchozí DALŠÍ KROK z 2026-06-15)
+2. Otevřít editor článku → zkontrolovat metabox „Interní prolinkování" → kliknout „Vložit linky"
+   → ověřit, že se zobrazí výsledek a obsah článku se uložil s novými `<a>` tagy
+3. Ověřit Elementor stránku: varování + dvojitý klik
+
+---
+
+## 🟡 Předchozí ZAČNI ZDE – konec session 2026-06-15 (NEPUSHNUTO)
+
+**Nově: M6 – Interní prolinkování (Internal Link Assistant + orphan pages),
+nový modul `internal-links`.** Indexuje interní link graf, hledá osamocené
+(orphan) stránky a navrhuje top 3 prolinkování přes lokální TF-IDF +
+kosinovou podobnost (bez externí AI). 3 nové DB tabulky
+(`internal_links`/`link_suggestions`/`link_scans`, `SEOB_DB_VERSION` →
+0.6.0, `SEOB_VERSION` → 0.5.0), nová stránka „Interní prolinkování“
+(`seob-internal-links`), metabox v editoru, health check. Detaily v
+`docs/dev-log.md` (záznam "M6: Interní prolinkování...") a
+`docs/modules/internal-links.md`.
+
+`composer test` **56/56 OK** (bylo 38, +18 nových testů –
+`tests/Unit/InternalLinks/ExtractorTest.php` a `SimilarityTest.php`),
+`php -l` OK na všech nových/upravených souborech.
+
+**Ověřeno (2026-06-15, přes wp-cli, bez prohlížeče), reálná DB (87
+položek)**: modul aktivován, plný reindex `87/87` proběhl, `orphans_count=82`,
+`avg_inlinks=0.11`. Návrhy dávají smysl (např. orphan stránka „CTA“ ze
+Slovíčku pojmů navrhuje odkázat z „CTA tlačítko“/„CTA na webu“, score
+0.31/0.30). Health check `critical` → po reindexu `good`+`warning` (82
+osamocených stránek). **Modul je na tomto test webu nyní aktivní**
+(`modules.internal-links = 1`).
+
+**Cestou se objevil a opravil bug**: sloupec `rank` v
+`seo_booster_link_suggestions` je od MySQL 8.0.2 rezervované slovo –
+`dbDelta()` tuto jednu tabulku tiše nevytvořil (ostatní 2 nové tabulky OK).
+Přejmenováno na `rank_order`.
+
+**NEOTESTOVÁNO V PROHLÍŽEČI**: dashboard stránka „Interní prolinkování“
+(tlačítko reindex, progress bar, tabulky, trendy) a editor metabox „Interní
+prolinkování“ – jen ověřeno přes wp-cli/PHP, ne přes UI.
+
+**OPRAVENO PO SESSION (aktivace modulu)**: smoke-test skript původně zapsal
+`modules.internal-links=1` do **špatného option klíče**
+(`seob_settings_general` – neexistuje), takže `is_active('internal-links')`
+vracel `false` a v menu SEO Booster položka „Interní prolinkování“ chyběla.
+Opraveno přes jednorázový skript – zapsáno do správného klíče
+`SEOB_Settings::GENERAL` = `seob_general_settings`. Po refreshi adminu by se
+položka menu měla zobrazit mezi „PageSpeed Insights“ a „Stav systému“ –
+**čeká na potvrzení uživatele, že se menu položka objevila**.
+
+## ⏭️ DALŠÍ KROK (pokračovat zde zítra)
+
+1. Otevřít admin (`reboost-test.local/wp-admin`) a ověřit, že v menu SEO
+   Booster je položka **„Interní prolinkování“**.
+2. Vizuálně otestovat stránku `seob-internal-links`: souhrn (87 stránek /
+   82 orphans / avg 0.11), tabulky „Osamocené stránky“ a „Všechny stránky“,
+   tlačítko „Spustit reindex“ + progress bar.
+3. Otevřít editor nějaké stránky (např. „CTA“ ID 1301 nebo „GDPR“ ID 3) a
+   ověřit postranní metabox „Interní prolinkování“ (počty odkazů + 3 návrhy
+   s funkčními edit-linky).
+4. Pokud vše OK → zapsat výsledek do `dev-log.md`, případně řešit drobné
+   UI nedostatky. Beze "push" do `feature/audit-dashboard-redirects`, dokud
+   to uživatel neřekne explicitně.
+
+---
+
+**Předchozí: souhrnný přehled celého webu na stránce PageSpeed Insights.**
 `get_results()` vrací nový klíč `overall` => `['mobile' => [...,'deltas'],
 'desktop' => [...]]` – vážený průměr (`compute_overall_scores()`, váha =
 `sample_size`) přes `performance_avg/accessibility_avg/best_practices_avg/seo_avg`

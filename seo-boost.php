@@ -16,8 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SEOB_VERSION',     '0.4.0' );
-define( 'SEOB_DB_VERSION',  '0.5.0' );
+define( 'SEOB_VERSION',     '0.5.0' );
+define( 'SEOB_DB_VERSION',  '0.6.0' );
 define( 'SEOB_PLUGIN_FILE', __FILE__ );
 define( 'SEOB_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );
 define( 'SEOB_PLUGIN_URL',  plugin_dir_url( __FILE__ ) );
@@ -81,6 +81,13 @@ $seob_files = [
 	'includes/PageSpeed/Client.php',
 	'includes/PageSpeed/ScanRunner.php',
 	'includes/PageSpeed/Ajax.php',
+	'includes/InternalLinks/Extractor.php',
+	'includes/InternalLinks/Similarity.php',
+	'includes/InternalLinks/ScanRunner.php',
+	'includes/InternalLinks/Indexer.php',
+	'includes/InternalLinks/LinkInserter.php',
+	'includes/InternalLinks/MetaBox.php',
+	'includes/InternalLinks/Ajax.php',
 	'includes/Plugin.php',
 ];
 

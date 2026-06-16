@@ -6,6 +6,20 @@ Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
 ## [Unreleased]
 
 ### Přidáno
+- **Interní prolinkování / Internal Link Assistant** (`includes/InternalLinks/`):
+  nový modul `internal-links` (výchozí vypnuto). Indexuje interní link graf
+  webu (`extract_links()`, 3-strategie extrakce obsahu jako Audit
+  Dashboard), detekuje osamocené (orphan) stránky bez příchozího interního
+  odkazu a navrhuje top 3 nejpodobnější stránky pro prolinkování pomocí
+  **lokálního TF-IDF + kosinové podobnosti** (žádná externí AI/API). Nová
+  stránka „Interní prolinkování“ (`seob-internal-links`) s dávkovým
+  reindexem (progress bar, vzor PageSpeed), souhrnem (počet stránek, orphans
+  + trend, průměr interních odkazů + trend), tabulkami osamocených a všech
+  stránek. Postranní metabox v editoru s návrhy „odkázat z“. 3 nové DB
+  tabulky (`internal_links`, `link_suggestions`, `link_scans`,
+  `SEOB_DB_VERSION` → 0.6.0), health check, nové PHPUnit testy
+  (`ExtractorTest`, `SimilarityTest`) – **56 testů, 170 assertions, OK**.
+  Detaily v `docs/modules/internal-links.md`.
 - **PageSpeed Insights (Lighthouse)** (`includes/PageSpeed/`): nový modul
   `pagespeed` – pro každý veřejný typ obsahu s publikovanými stránkami
   vybere náhodný vzorek (5 položek), otestuje přes Google PageSpeed

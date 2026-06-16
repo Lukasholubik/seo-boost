@@ -61,6 +61,10 @@ class SEOB_Admin {
 			add_submenu_page( self::MENU_SLUG, 'PageSpeed Insights', 'PageSpeed Insights', self::CAPABILITY, 'seob-pagespeed', [ $this, 'page_pagespeed' ] );
 		}
 
+		if ( SEOB_Module_Manager::is_active( 'internal-links' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'Interní prolinkování', 'Interní prolinkování', self::CAPABILITY, 'seob-internal-links', [ $this, 'page_internal_links' ] );
+		}
+
 		// Stav systému a Nastavení zůstávají vždy dostupné – odsud se moduly znovu zapínají.
 		add_submenu_page( self::MENU_SLUG, 'Stav systému', 'Stav systému', self::CAPABILITY, 'seob-status',   [ $this, 'page_status' ] );
 		add_submenu_page( self::MENU_SLUG, 'Nastavení',    'Nastavení',    self::CAPABILITY, 'seob-settings', [ $this, 'page_settings' ] );
@@ -158,6 +162,19 @@ class SEOB_Admin {
 				true
 			);
 			wp_localize_script( 'seob-pagespeed', 'seobData', $shared_data );
+
+			return;
+		}
+
+		if ( str_ends_with( $hook, '_page_seob-internal-links' ) ) {
+			wp_enqueue_script(
+				'seob-internal-links',
+				SEOB_PLUGIN_URL . 'assets/admin/js/internal-links.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-internal-links', 'seobData', $shared_data );
 
 			return;
 		}
@@ -313,6 +330,15 @@ class SEOB_Admin {
 		}
 
 		$this->render_template( 'page-pagespeed.php' );
+	}
+
+	public function page_internal_links(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'internal-links' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['internal-links']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-internal-links.php' );
 	}
 
 	public function page_pdf_settings(): void {

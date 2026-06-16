@@ -208,6 +208,13 @@
 	flex-wrap: wrap;
 }
 
+.seob-wrap .seob-summary-row {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin: 16px 0;
+}
+
 .seob-wrap .seob-summary-box {
 	background: #fff;
 	border: 1px solid #c3c4c7;
