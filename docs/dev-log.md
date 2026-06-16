@@ -7,6 +7,115 @@
 
 ## Záznamy
 
+### 2026-06-16 (update 15) – Fix: WP-Cron SSL + Audit Scanner timeout → oba scany opraveny
+
+**Problem:** Oba scany (JSON-LD Validator + Audit Dashboard) byly po zmacknuti stuck na 0/49 stranek.
+
+**Pricina A – JSON-LD scan (WP-Cron SSL):**
+WP-Cron `spawn_cron()` odesilal HTTP POST na `wp-cron.php` pres HTTPS. V Local by Flywheel je self-signed SSL certifikat → request selhal → `process_batch()` se nikdy nespustil.
+
+**Pricina B – Audit Dashboard scan (loopback timeout):**
+`count_rendered_h1()` v `Scanner.php` delal loopback HTTP request na frontend stranky. Timeout byl 10s se 3 pokusy = 30s na stranku. S batch_size=20 trvala prvni davka 10 minut nez JS dostal prvni odpoved (progress bar zustaval na 0/49).
+
+**Opravy:**
+- `Plugin.php::init()` – pridat `cron_request` filter: nastavi `sslverify=false` pro vsechny WP-Cron spawn requesty. Opravuje JSON-LD scan globalne (i PageSpeed scan bude fungovat).
+- `JsonLd/ScanRunner::start()` – pridat `spawn_cron()` po `wp_schedule_single_event()`: prvni davka se spusti okamzite bez cekani na dalsi page load.
+- `Audit/Scanner::count_rendered_h1()` – timeout snizen `10s → 3s`, retries odstrany (1 pokus misto 3). Pokud loopback selze, fallback na content-based H1 detection (parsovani z post_content). Nejhorsi pripad: 3s na stranku misto 30s.
+- `Settings.php` – default `batch_size` `20 → 5`. Kazda AJAX davka zpracuje max 5 stranek = max 15s na volani (dobre pod kazdym PHP limitem).
+
+**Vysledek:** JSON-LD scan: prvni davka se spusti do <2s. Audit scan: progress se zobrazuje po kazdych 5 strankach (~15s max).
+
+---
+
+### 2026-06-16 (update 14) – M3: Fix false positives @context + integrace JSON-LD do Audit Dashboardu
+
+**Co:**
+- `Validator.php::extract_schemas()` – polozky v `@graph` nyni dedi `@context` z parent kontejneru. Opravuje false-positive varovani "Chybi klic @context" pro vsechny schemata generovana Rank Mathem (ktery pouziva @graph).
+- `json-ld.js::renderSingleResult()` – zobrazuje `fix_hint` ke kazdemu nalezu v single URL validatoru (barevne bloky "Jak opravit" same jako v plnem scanu).
+- `Admin.php` – pridan `jsonLdActive` + `jsonLdUrl` do seobData pro stranku Audit Dashboardu.
+- `page-dashboard.php` – pridat `<div class="seob-jsonld-panel">` do `#seob-row-template` (skryta, zobrazuje se jen kdyz je json-ld modul aktivni).
+- `audit-dashboard.js`:
+  - Nova funkce `renderJsonLdAuditResult(d, editUrl)` – vykresli vysledek validace s fix hinty a odkazem "Otevrit editor".
+  - V `buildRow()`: kdyz `seobData.jsonLdActive`, zobrazi sekci JSON-LD v inline panelu s tlacitkem "Zkontrolovat JSON-LD" (AJAX `seob_json_ld_scan_url`).
+
+**Proc:** Uzivatel videl false-positive varovani @context na vsech strankach. Chtel fixovat chyby primo v Audit Dashboardu bez otevirani separatni stranky JSON-LD Validatoru.
+
+---
+
+### 2026-06-16 (update 13) – M3: Skupiny dle post type, fix hinty, tlacitko Upravit
+
+**Co:**
+- `PageScanner::get_scan_urls()` vraci objekty `{url, post_type, post_type_label, post_id, edit_url}` – pridam metadata post typu a odkaz na WP editor pro kazde URL
+- `PageScanner::get_fix_hint(message, type)` – nova private metoda, ktera ke kazde chybove zprave vraci konkretni navod jak opravit (kde v Rank Math, co vyplnit)
+- `PageScanner::scan_url()` – kazdy issue ma nove pole `fix_hint` (retezec s instrukcemi)
+- `ScanRunner::process_batch()` – mergeuje metadata z queue itemu do vysledku; zpetna kompatibilita (stary format = string stale funguje)
+- `templates/admin/page-json-ld.php` – kompletni prepis:
+  - Vysledky seskupeny dle `post_type_label` (Hlavni stranka prvni, pak abecedne)
+  - Kazda skupina ma hlavicku s poctem stranek + barevne odznacky pro chyby/duplicity
+  - Kazda URL ma tlacitko **Upravit** (otevre WP editor v nove zalozce)
+  - Kazda chyba ma barevny blok s polem **Jak opravit:** (fix_hint text) + odkaz "Otevrit editor"
+  - Duplicity maji vlastni vysvëtleni + pokyny jak zjistit zdroj a odstranit
+
+**Proc:** Uzivatel chtel seskupeni dle post type (jako vsude jinde v pluginu) + moznost opravit chyby primo z reportu.
+
+---
+
+### 2026-06-16 (update 12) – M3: Fix zahlteni serveru pri scanu + dokumentace
+
+**Co:** Scan zahlcoval web – vsechny stranky byly extremne pomale kdyz scan bezel.
+
+**Pricina:** `process_batch()` volal `wp_remote_get` na 5 URL naraz (loopback HTTP requesty). Lokalni PHP-FPM ma maly worker pool – 5 soucasnych loopback pozadavku saturovalo vsechny workery, takze uzivatelovy requesty cekaly.
+
+**Oprava:**
+- `ScanRunner.php`: `BATCH_SIZE 5 → 1` (1 URL per cron spusteni), nova konstanta `BATCH_DELAY = 3` (sekundy pauzy), `wp_schedule_single_event(time() + BATCH_DELAY, ...)` misto `time()`.
+- `PageScanner.php`: pridano `'sslverify' => false` (loopback requesty selhavaly na self-signed SSL v Local), timeout snizen `10s → 8s`.
+- `json-ld.js`: zprava po spusteni scanu vysvetluje tempo (1 URL / 3 sekundy).
+- `docs/modules/json-ld-validator.md`: kompletni prepis – aktualni architektura (background scan, polling), sekce "Co delat s nalezy" (jak opravit nevalidni schema, jak resit duplicity, co konfigurovat), sekce o automatickem planovani scanu.
+
+**Vysledek:** Scan 50 URL trva ~2,5 minuty ale web bezi normalne. Pomer 1 URL / 3s lze konfigurovat zmenou `BATCH_SIZE` a `BATCH_DELAY`.
+
+---
+
+### 2026-06-16 (update 11) – M3: Background scan + archiv skenů
+
+**Co:** Prepsani scanu z JS-loop na server-side WP-Cron batch processing.
+- Novy `includes/JsonLd/ScanRunner.php`: `start()` naplanova cron, `process_batch()` ho konsumuje (5 URL/davka), vysledky do transienta, archiv poslednich 10 scanu v WP option `seob_jsonld_scan_archive`.
+- `Ajax.php`: nove endpointy `seob_json_ld_start_scan`, `seob_json_ld_cancel_scan`, `seob_json_ld_scan_status`, `seob_json_ld_get_history`, `seob_json_ld_get_results`. Odstranen stary `run_scan` / `save_results` approach.
+- `PageScanner.php`: zustava jen `scan_url()` a `get_scan_urls()`, zachovana zpetna kompatibilita `get_last_results()` pres ScanRunner.
+- Template: karta "Archiv scenu" (tabulka s historii, odkaz na konkretni scan), progress bar s % + "X / N stranky", tlacitko Zrusit scan.
+- JS: ciste polling `seob_json_ld_scan_status` kazde 2 sekundy, po `done` reload na spravny `?scan_id=`. Pokud uzivatel pride zpet na stranku a scan bezi, polling se automaticky nastartuje (`data-running="1"`).
+
+**Vysledek:** Scan bezi nezavisle na browseru – kazdý admin-page request spousti dalsi WP-Cron davku. `composer test` 96/96 OK.
+
+---
+
+### 2026-06-16 (update 10) – M3: JSON-LD Validator + detektor duplicit
+
+**Co:** Novy modul `json-ld` (vychozi: vypnuto). Extrahuje vsechny `application/ld+json` bloky z renderovaneho HTML stranky, validuje je vuci schema.org specifikaci a detekuje duplicitni schemata stejneho @type.
+
+**Soubory:**
+- `includes/JsonLd/Validator.php` – staticky validacni engine: `extract_schemas()`, `validate_schema()`, `detect_duplicates()`, `self_test()`, `short_type()`
+- `includes/JsonLd/PageScanner.php` – nacita stranky pres `wp_remote_get`, spousti davkovy scan (max 50 URL), ukla vysledky do transienta, zapisuje do `seo_booster_metrics`
+- `includes/JsonLd/Ajax.php` – AJAX: `seob_json_ld_run_scan`, `seob_json_ld_scan_url`, `seob_json_ld_get_results`
+- `templates/admin/page-json-ld.php` – admin stranka: prehledova tabulka (URL / pocet schemat / chyby / duplicity / stav), validace jednotlive URL, dokumentace
+- `assets/admin/js/json-ld.js` – JS: tlacitko "Spustit scan", validace jednotlive URL, live zobrazeni vysledku
+- `tests/Unit/JsonLd/ValidatorTest.php` – 21 testu, vsechny OK
+
+**Integrace:**
+- `Settings.php`: `const JSON_LD`, `'json-ld' => 0` v modules defaultech
+- `ModuleManager.php`: registrace modulu `json-ld`
+- `Admin/Admin.php`: podmenu "JSON-LD Validator" + enqueue `json-ld.js`
+- `Admin/SettingsAjax.php`: `modules_json_ld` checkbox
+- `templates/admin/page-settings.php`: checkbox v sekci Moduly
+- `Health/HealthChecks.php`: case `json-ld` + metoda `json_ld_checks()` (self-test, posledni scan, invalid, duplicates)
+- `seo-boost.php`: verze 0.7.0 -> 0.8.0, nahr soubory
+
+**Testovano:** `composer test` – 96 testu, 284 assertions, OK. `php -l` bez chyb na vsech souborech.
+
+**Poznamka:** Validacni chybovy retezce pouzivaji ASCII (bez UTF-8 specialnich znaku), protoze Czech curly quotes uvnitr PHP double-quoted stringu s `{$var}` interpolaci zpusobily parse error na radce 130 (tokenizer si spletl bytove hodnoty s koncem retezce).
+
+---
+
 ### 2026-06-16 (update 9) – M11: Oprava detekce konfliktu RM Free vs RM Pro
 
 **Problém:** RM Free Schema modul LocalBusiness JSON-LD také umí → původní dokumentace tvrdila, že RM Free konflikt netvoří, což je nepřesné.

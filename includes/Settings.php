@@ -17,6 +17,7 @@ class SEOB_Settings {
 	const AI             = 'seob_ai_settings';
 	const PAGESPEED      = 'seob_pagespeed_settings';
 	const LOCAL_SEO      = 'seob_local_seo_settings';
+	const JSON_LD        = 'seob_json_ld_settings';
 
 	/**
 	 * Výchozí hodnoty pro jednotlivé option klíče.
@@ -38,13 +39,14 @@ class SEOB_Settings {
 						'internal-links' => 0,
 					'hreflang'       => 0,
 					'local-seo'      => 0,
+					'json-ld'        => 0,
 					],
 				];
 
 			case self::AUDIT:
 				return [
 					'cron_enabled'   => 1,
-					'batch_size'     => 20,
+					'batch_size'     => 5,
 					'thin_content_words' => 300,
 					'history_limit'  => 20,
 				];

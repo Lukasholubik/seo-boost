@@ -187,26 +187,16 @@ class SEOB_Audit_Scanner {
 		}
 
 		$args = [
-			'timeout'   => 10,
+			// Kratky timeout: v Local by Flywheel muze loopback blokovat (omezeny PHP-FPM
+			// worker pool). Pokud request selze, vraci count_rendered_h1() null a skener
+			// pouzije fallback na data z post_content – scan tak vzdy dokonci v rozumnem case.
+			'timeout'   => 3,
 			'sslverify' => false,
 			'cookies'   => $cookies,
 			'headers'   => [ 'Cache-Control' => 'no-cache' ],
 		];
 
-		// Loopback požadavky během dávkového scanu občas selžou (vytížení
-		// PHP-FPM workerů / firewall), proto až 3 pokusy s krátkou prodlevou.
-		$response = null;
-		for ( $attempt = 1; $attempt <= 3; $attempt++ ) {
-			$response = wp_remote_get( $url, $args );
-
-			if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
-				break;
-			}
-
-			if ( $attempt < 3 ) {
-				usleep( 300000 );
-			}
-		}
+		$response = wp_remote_get( $url, $args );
 
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
 			return null;
