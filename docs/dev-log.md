@@ -7,6 +7,16 @@
 
 ## Záznamy
 
+### 2026-06-16 (update 8) – M11: Rozšíření dokumentace v admin UI
+
+- `templates/admin/page-local-seo.php` – `<details>` dokumentace přepsána na kompletní průvodce:
+  proč Local SEO dělat (tabulka přínosů), rychlý 5-krokový průvodce, typy podnikání (kdy co použít),
+  proč IČO/DIČ (ARES/OR propojení), jak získat GPS, otevírací doba (edge cases), NAP konzistence
+  (tabulka formátů telefonu), kde vkládat JSON-LD (srovnání), validace (postup), konflikty (5 pluginů),
+  časté chyby a řešení
+
+---
+
 ### 2026-06-16 (update 7) – M11: Local SEO (CZ)
 
 **Nové soubory:**

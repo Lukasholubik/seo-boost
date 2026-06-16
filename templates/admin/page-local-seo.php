@@ -324,126 +324,410 @@ $pages = get_pages( [ 'post_status' => 'publish', 'sort_column' => 'post_title' 
 
 	<?php /* ── Dokumentace ─────────────────────────────────────────────── */ ?>
 	<details class="seob-schema-help" style="margin-top:30px;">
-		<summary><?php esc_html_e( 'Dokumentace: co je Local SEO a jak to funguje (klikněte pro zobrazení)', 'seo-boost' ); ?></summary>
+		<summary><?php esc_html_e( 'Jak Local SEO nastavit a proč to má smysl – kompletní průvodce (klikněte)', 'seo-boost' ); ?></summary>
 		<div class="seob-schema-help-body">
 
-			<h3><?php esc_html_e( 'Co je LocalBusiness JSON-LD?', 'seo-boost' ); ?></h3>
+			<h3><?php esc_html_e( 'Proč vůbec Local SEO řešit?', 'seo-boost' ); ?></h3>
 			<p>
-				<?php esc_html_e( 'LocalBusiness je typ strukturovaných dat ze schema.org. Říká Googlu a dalším vyhledávačům: "tato firma existuje na konkrétním místě, má tuto adresu, telefon a otevírací dobu." Správně nastavené schéma může:', 'seo-boost' ); ?>
-			</p>
-			<ul>
-				<li><?php esc_html_e( 'Zobrazit otevírací dobu přímo ve výsledcích vyhledávání (rich results)', 'seo-boost' ); ?></li>
-				<li><?php esc_html_e( 'Posílit nebo vytvořit Knowledge Panel (informační panel) ve vyhledávači', 'seo-boost' ); ?></li>
-				<li><?php esc_html_e( 'Zlepšit zobrazení v Mapy Google / mapy.cz při propojení s Google Business Profile', 'seo-boost' ); ?></li>
-				<li><?php esc_html_e( 'Zvýšit důvěryhodnost entity v kontextu E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)', 'seo-boost' ); ?></li>
-			</ul>
-
-			<h3><?php esc_html_e( 'Proč IČO a DIČ?', 'seo-boost' ); ?></h3>
-			<p>
-				<?php esc_html_e( 'Google ztotožňuje entity (firmy) s rejstříky, jako je ARES nebo Obchodní rejstřík. IČO (a DIČ) slouží jako jednoznačný identifikátor, který pomáhá propojit webovou entitu se záznamy v rejstřících a zesiluje Knowledge Graph signal. Tyto hodnoty se vkládají do pole identifier jako PropertyValue.', 'seo-boost' ); ?>
-			</p>
-
-			<h3><?php esc_html_e( 'Příklad výstupu JSON-LD', 'seo-boost' ); ?></h3>
-			<pre style="background:#f0f0f1;padding:12px;overflow:auto;font-size:12px;">{
-  "@context": "https://schema.org",
-  "@type": "ProfessionalService",
-  "name": "ACME s.r.o.",
-  "url": "https://acme.cz/",
-  "telephone": "+420 123 456 789",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "Náměstí Republiky 1",
-    "addressLocality": "Praha",
-    "postalCode": "110 00",
-    "addressCountry": "CZ"
-  },
-  "geo": {
-    "@type": "GeoCoordinates",
-    "latitude": 50.0875,
-    "longitude": 14.4213
-  },
-  "openingHoursSpecification": [
-    {
-      "@type": "OpeningHoursSpecification",
-      "dayOfWeek": "https://schema.org/Monday",
-      "opens": "09:00",
-      "closes": "17:00"
-    }
-  ],
-  "identifier": [
-    { "@type": "PropertyValue", "name": "IČO", "value": "12345678" },
-    { "@type": "PropertyValue", "name": "DIČ", "value": "CZ12345678" }
-  ]
-}</pre>
-
-			<h3><?php esc_html_e( 'Co je NAP a proč záleží na konzistenci?', 'seo-boost' ); ?></h3>
-			<p>
-				<?php esc_html_e( 'NAP = Name, Address, Phone. Vyhledávače křížově porovnávají kontaktní informace z různých zdrojů (web, Google Business Profile, výpisy v rejstřících, citace). Pokud jsou data nekonzistentní (různé formáty telefonu, různé adresní varianty), důvěryhodnost lokální entity klesá.', 'seo-boost' ); ?>
+				<?php esc_html_e( 'Lokální vyhledávání je pro fyzické provozovny a firmy poskytující služby v konkrétní oblasti jeden z nejsilnějších zdrojů zákazníků. Přes 46 % všech Google vyhledávání má lokální záměr – uživatel hledá "instalatér Praha", "zubař Brno Vinohrady" nebo "kavárna blízko mě". Abyste se v těchto výsledcích dobře umístili, potřebujete správně předat Googlu informaci, kdo jste, kde jste a co nabízíte.', 'seo-boost' ); ?>
 			</p>
 			<p>
-				<?php esc_html_e( 'NAP scan v tomto modulu prohledá obsah webu a najde výskyty telefonu se zvláštní pozorností na různé formáty zápisu (např. 123 456 789 vs. +420123456789 vs. 123-456-789). Cílem je ujistit se, že na webu používáte konzistentně stejný formát jako v JSON-LD.', 'seo-boost' ); ?>
+				<?php esc_html_e( 'Strukturovaná data LocalBusiness jsou tím nejpřímějším způsobem, jak tuto informaci vyhledávači sdělit. Nejde o magický trik – jde o hygienický základ, bez kterého řada věcí (Knowledge Panel, rich results s otevírací dobou, propojení s Mapami) jednoduše nefunguje.', 'seo-boost' ); ?>
 			</p>
 
-			<h3><?php esc_html_e( 'Kde vkládat JSON-LD?', 'seo-boost' ); ?></h3>
+			<h4><?php esc_html_e( 'Konkrétní přínosy správně nastaveného schématu:', 'seo-boost' ); ?></h4>
 			<table class="wp-list-table widefat fixed striped seob-table">
 				<thead>
 					<tr>
-						<th><?php esc_html_e( 'Možnost', 'seo-boost' ); ?></th>
-						<th><?php esc_html_e( 'Kdy použít', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Co to dá', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Proč je to důležité', 'seo-boost' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
-						<td><?php esc_html_e( 'Pouze úvodní stránka', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'Nejčastější volba pro firmy s jednou pobočkou. Google obvykle crawluje homepage jako "hlavní entitu".', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Otevírací doba ve výsledcích vyhledávání', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Uživatel vidí přímo ve výsledcích, zda jste otevřeni – zvyšuje proklik a snižuje zklamání při příjezdu.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
-						<td><?php esc_html_e( 'Kontaktní stránka', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'Vhodné pokud kontaktní stránka obsahuje mapu, adresu a otevírací dobu – schéma je kontextově relevantní.', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Knowledge Panel (informační panel)', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Google zobrazí vpravo vedle výsledků kartu s adresou, telefonem, fotkami a hodnoceními. Výrazně posiluje důvěryhodnost firmy.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
-						<td><?php esc_html_e( 'Všechny stránky', 'seo-boost' ); ?></td>
-						<td><?php esc_html_e( 'Silnější signál, ale zvyšuje objem HTML. Google stejně bere v potaz jen jeden výstup pro entitu – vhodné spíše pro weby s malým počtem stránek.', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Propojení s Google Business Profile', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Schéma na webu + ověřený GBP profil = silnější signal lokální přítomnosti. Google propojuje obě entity a zobrazuje firmu v Mapách.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'E-E-A-T (důvěryhodnost entity)', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Strukturovaná data s IČO/DIČ propojená s ARES/OR signalizují Googlu, že entita existuje v reálném světě. Zesiluje autoritu webu ve výsledcích.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Hlasové vyhledávání a asistenti', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Google Asistent, Siri a Alexa čerpají z strukturovaných dat. Dotaz „Kdy zavírají?" nebo „Zavolej [firma]" funguje spolehlivěji.', 'seo-boost' ); ?></td>
 					</tr>
 				</tbody>
 			</table>
 
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Rychlý průvodce – jak začít (5 kroků)', 'seo-boost' ); ?></h3>
+			<ol style="font-size:14px;line-height:1.8;">
+				<li>
+					<strong><?php esc_html_e( 'Vyplňte název firmy a typ podnikání', 'seo-boost' ); ?></strong> –
+					<?php esc_html_e( 'Název musí souhlasit s tím, jak je firma zapsána v živnostenském/obchodním rejstříku. Typ zvolte co nejpřesnější.', 'seo-boost' ); ?>
+				</li>
+				<li>
+					<strong><?php esc_html_e( 'Doplňte telefon ve formátu +420 XXX XXX XXX', 'seo-boost' ); ?></strong> –
+					<?php esc_html_e( 'Mezinárodní formát s mezerami. Tento formát pak budete hlídat přes NAP scan, zda ho web konzistentně používá.', 'seo-boost' ); ?>
+				</li>
+				<li>
+					<strong><?php esc_html_e( 'Vyplňte adresu a GPS souřadnice', 'seo-boost' ); ?></strong> –
+					<?php esc_html_e( 'GPS je klíčové pro zobrazení v Mapách. Souřadnice snadno zkopírujete z mapy.cz (pravý klik → Souřadnice místa) nebo Google Maps.', 'seo-boost' ); ?>
+				</li>
+				<li>
+					<strong><?php esc_html_e( 'Přidejte IČO (a DIČ pokud jste plátce DPH)', 'seo-boost' ); ?></strong> –
+					<?php esc_html_e( 'Slouží jako jednoznačný identifikátor pro propojení s rejstříky. Obě hodnoty vkládáme jako PropertyValue identifikátory.', 'seo-boost' ); ?>
+				</li>
+				<li>
+					<strong><?php esc_html_e( 'Uložte, klikněte na „Náhled JSON-LD" a vložte výstup do Rich Results Test', 'seo-boost' ); ?></strong> –
+					<?php esc_html_e( 'Ověřte, že Google schéma správně rozpozná. Pak spusťte NAP scan, zda web nepoužívá různé formáty telefonu.', 'seo-boost' ); ?>
+				</li>
+			</ol>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Co je LocalBusiness JSON-LD (technické pozadí)', 'seo-boost' ); ?></h3>
+			<p>
+				<?php esc_html_e( 'JSON-LD (JavaScript Object Notation for Linked Data) je formát strukturovaných dat, který se vkládá jako neviditelný blok do hlavičky HTML stránky. Prohlížeč ho ignoruje, ale vyhledávací roboti ho čtou přednostně. Je to nejčistší způsob předání schématu – nevyžaduje úpravu HTML obsahu stránky a nezávisí na layoutu šablony.', 'seo-boost' ); ?>
+			</p>
+			<p>
+				<?php esc_html_e( 'LocalBusiness je podtyp schema.org Thing → Organization → LocalBusiness. Sděluje vyhledávačům: název firmy, typ podnikání, adresu, telefon, e-mail, GPS polohu, otevírací dobu, logo a identifikátory (IČO, DIČ). Každý vyplněný atribut je jeden krok k lepšímu porozumění entity Googlem.', 'seo-boost' ); ?>
+			</p>
+
+			<h4><?php esc_html_e( 'Ukázka výstupu pro firmu ze servisu', 'seo-boost' ); ?></h4>
+			<pre style="background:#f0f0f1;padding:12px;overflow:auto;font-size:12px;line-height:1.5;">&lt;script type="application/ld+json"&gt;
+{
+  "@context": "https://schema.org",
+  "@type": "AutoRepair",
+  "name": "Autoservis Novák s.r.o.",
+  "url": "https://autoservis-novak.cz/",
+  "telephone": "+420 777 123 456",
+  "email": "info@autoservis-novak.cz",
+  "description": "Komplexní servis osobních vozidel v Praze 9.",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Průmyslová 42",
+    "addressLocality": "Praha",
+    "postalCode": "190 00",
+    "addressCountry": "CZ"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 50.1234,
+    "longitude": 14.5678
+  },
+  "openingHoursSpecification": [
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": "https://schema.org/Monday",    "opens": "07:00", "closes": "17:00" },
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": "https://schema.org/Tuesday",   "opens": "07:00", "closes": "17:00" },
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": "https://schema.org/Wednesday", "opens": "07:00", "closes": "17:00" },
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": "https://schema.org/Thursday",  "opens": "07:00", "closes": "17:00" },
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": "https://schema.org/Friday",    "opens": "07:00", "closes": "15:00" }
+  ],
+  "identifier": [
+    { "@type": "PropertyValue", "name": "IČO", "value": "12345678" },
+    { "@type": "PropertyValue", "name": "DIČ", "value": "CZ12345678" }
+  ],
+  "image": "https://autoservis-novak.cz/logo.png",
+  "priceRange": "$$"
+}
+&lt;/script&gt;</pre>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Výběr správného typu podnikání', 'seo-boost' ); ?></h3>
+			<p>
+				<?php esc_html_e( 'Typ podnikání (@type) je jedním z nejdůležitějších atributů. Čím přesnější, tím lépe – Google může zobrazit specifické rich result formáty (např. pro Restaurant zobrazí hodnocení a rezervaci). Nikdy nezvolte obecný LocalBusiness, pokud existuje přesnější podtyp.', 'seo-boost' ); ?>
+			</p>
+			<table class="wp-list-table widefat fixed striped seob-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Typ schema.org', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Kdy použít', 'seo-boost' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr><td>LocalBusiness</td><td><?php esc_html_e( 'Pouze pokud žádný přesnější typ neodpovídá. Nejméně specifický.', 'seo-boost' ); ?></td></tr>
+					<tr><td>ProfessionalService</td><td><?php esc_html_e( 'IT firmy, konzultanti, marketingové agentury, reklamní agentury.', 'seo-boost' ); ?></td></tr>
+					<tr><td>LegalService</td><td><?php esc_html_e( 'Advokáti, notáři, exekutoři.', 'seo-boost' ); ?></td></tr>
+					<tr><td>AccountingService</td><td><?php esc_html_e( 'Účetní firmy, daňoví poradci.', 'seo-boost' ); ?></td></tr>
+					<tr><td>Dentist</td><td><?php esc_html_e( 'Zubní kliniky, ordinace zubního lékaře.', 'seo-boost' ); ?></td></tr>
+					<tr><td>Physician / MedicalClinic</td><td><?php esc_html_e( 'Ordinace lékaře, zdravotní klinika, centrum.', 'seo-boost' ); ?></td></tr>
+					<tr><td>Restaurant</td><td><?php esc_html_e( 'Restaurace – Google může zobrazit menu, hodnocení a rezervaci.', 'seo-boost' ); ?></td></tr>
+					<tr><td>AutoRepair</td><td><?php esc_html_e( 'Autoservisy, pneuservisy.', 'seo-boost' ); ?></td></tr>
+					<tr><td>HomeAndConstructionBusiness</td><td><?php esc_html_e( 'Stavební firmy, rekonstrukce, interiérový design.', 'seo-boost' ); ?></td></tr>
+					<tr><td>BeautySalon / HairSalon</td><td><?php esc_html_e( 'Kosmetické salony, kadeřnictví, nehtové studio.', 'seo-boost' ); ?></td></tr>
+					<tr><td>Hotel / LodgingBusiness</td><td><?php esc_html_e( 'Hotely, penziony, ubytovny – Google zobrazí dostupnost a ceny.', 'seo-boost' ); ?></td></tr>
+					<tr><td>RealEstateAgent</td><td><?php esc_html_e( 'Realitní kanceláře a agenti.', 'seo-boost' ); ?></td></tr>
+				</tbody>
+			</table>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Proč IČO a DIČ? (CZ specifika)', 'seo-boost' ); ?></h3>
+			<p>
+				<?php esc_html_e( 'Google Knowledge Graph propojuje entity z různých zdrojů – web, Google Business Profile, Wikidata, rejstříky. V Česku jsou klíčovými rejstříky ARES (administrativní registr ekonomických subjektů) a Obchodní rejstřík (OR). Pokud Google nalezne IČO na vašem webu a v ARES, může tyto dvě entity ztotožnit a výrazně posílit Knowledge Panel.', 'seo-boost' ); ?>
+			</p>
+			<p>
+				<?php esc_html_e( 'Technicky se IČO a DIČ vkládají jako PropertyValue objekty v poli identifier. Toto je standardní způsob schema.org pro identifikátory, které nemají vlastní atribut.', 'seo-boost' ); ?>
+			</p>
+			<pre style="background:#f0f0f1;padding:10px;overflow:auto;font-size:12px;">"identifier": [
+  { "@type": "PropertyValue", "name": "IČO", "value": "12345678" },
+  { "@type": "PropertyValue", "name": "DIČ", "value": "CZ12345678" }
+]</pre>
+			<p>
+				<strong><?php esc_html_e( 'Tip:', 'seo-boost' ); ?></strong>
+				<?php esc_html_e( 'IČO vyplňte vždy (platí pro OSVČ i s.r.o. a a.s.). DIČ vyplňte pouze pokud jste plátci DPH – neplátci DIČ nemají.', 'seo-boost' ); ?>
+			</p>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Jak získat GPS souřadnice', 'seo-boost' ); ?></h3>
+			<p><?php esc_html_e( 'GPS souřadnice jsou důležité pro propojení schématu s mapovými službami. Existují tři snadné způsoby:', 'seo-boost' ); ?></p>
+			<ol>
+				<li>
+					<strong>mapy.cz:</strong>
+					<?php esc_html_e( 'Najděte provozovnu → pravý klik na bod → „Souřadnice místa" → zkopírujte zeměpisnou šířku (první číslo) a délku (druhé číslo).', 'seo-boost' ); ?>
+				</li>
+				<li>
+					<strong>Google Maps:</strong>
+					<?php esc_html_e( 'Klikněte pravým tlačítkem přímo na budovu → první řádek v menu jsou souřadnice ve formátu šířka, délka → klikněte pro zkopírování.', 'seo-boost' ); ?>
+				</li>
+				<li>
+					<strong><?php esc_html_e( 'Google Business Profile:', 'seo-boost' ); ?></strong>
+					<?php esc_html_e( 'Pokud máte ověřený GBP profil, souřadnice jsou v URL při zobrazení profilu na Mapách (parametr @lat,lng).', 'seo-boost' ); ?>
+				</li>
+			</ol>
+			<p class="description">
+				<?php esc_html_e( 'Zeměpisná šířka pro ČR: přibližně 49–51. Zeměpisná délka: přibližně 12–18. Pokud vám vychází jiná čísla, máte prohozené souřadnice.', 'seo-boost' ); ?>
+			</p>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Otevírací doba – jak správně vyplnit', 'seo-boost' ); ?></h3>
+			<p>
+				<?php esc_html_e( 'Otevírací doba se vkládá jako pole OpeningHoursSpecification. Každý den je samostatný objekt s atributy dayOfWeek, opens a closes.', 'seo-boost' ); ?>
+			</p>
+			<table class="wp-list-table widefat fixed striped seob-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Situace', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Jak nastavit', 'seo-boost' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><?php esc_html_e( 'Standardní otevírací hodiny', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Vyplňte pole „Otevřeno od" a „Zavřeno v" ve formátu HH:MM (24 hodin). Například 09:00 a 17:00.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Den bez provozu (SO, NE)', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Zaškrtněte „Zavřeno" – pole pro časy se deaktivují a den se do JSON-LD nevloží.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Provoz přes půlnoc (např. bar)', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Zadejte například 18:00 a 02:00. Schema.org tuto situaci zvládá.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Non-stop provoz', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Zadejte 00:00 jako otevření a 23:59 jako zavření pro každý den.', 'seo-boost' ); ?></td>
+					</tr>
+				</tbody>
+			</table>
+			<p class="description">
+				<?php esc_html_e( 'Poznámka: schéma nepodporuje různé svátky ani sezónní výjimky – pouze standardní týdenní rozvrh.', 'seo-boost' ); ?>
+			</p>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Co je NAP konzistence a proč ji hlídat?', 'seo-boost' ); ?></h3>
+			<p>
+				<?php esc_html_e( 'NAP = Name, Address, Phone (Název, Adresa, Telefon). Lokální SEO stojí na principu, že tyto tři informace musí být všude na webu i mimo web (Google Business Profile, online katalogy, sociální sítě) uváděny identicky – stejný formát, stejný zápis.', 'seo-boost' ); ?>
+			</p>
+			<p>
+				<?php esc_html_e( 'Problém nastává zejména u telefonních čísel. Na webu se může vyskytovat tentýž telefon v desítkách různých zápisů:', 'seo-boost' ); ?>
+			</p>
+			<table class="wp-list-table widefat fixed striped seob-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Zápis telefonu', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Doporučeno?', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Poznámka', 'seo-boost' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>+420 777 123 456</code></td>
+						<td style="color:green;">&#10003; <?php esc_html_e( 'Ano', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Mezinárodní formát s mezerami – nejčitelnější, používejte na webu i v JSON-LD.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><code>+420777123456</code></td>
+						<td style="color:orange;">&#9888; <?php esc_html_e( 'Částečně', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Mezinárodní formát bez mezer – NAP scan to označí jako neshodný formát, ale číslo je správné.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><code>777 123 456</code></td>
+						<td style="color:orange;">&#9888; <?php esc_html_e( 'Slabší', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Bez předvolby – pro lokální použití OK, ale v JSON-LD doporučujeme vždy s +420.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><code>777-123-456</code></td>
+						<td style="color:red;">&#10007; <?php esc_html_e( 'Ne', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Pomlčky jako oddělovač – nekonzistentní formát, nahraďte mezerami.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><code>777.123.456</code></td>
+						<td style="color:red;">&#10007; <?php esc_html_e( 'Ne', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Tečky jako oddělovač – neobvyklý formát v CZ prostředí.', 'seo-boost' ); ?></td>
+					</tr>
+				</tbody>
+			</table>
+			<p>
+				<?php esc_html_e( 'NAP scan prohledá obsah všech publikovaných příspěvků a stránek a najde výskyty vašeho telefonního čísla (ve všech formátech). Výsledky přehledně ukáže, kde je formát odlišný od referenčního zápisu z nastavení. Opravte neshodné výskyty přímo klikem na „Upravit".', 'seo-boost' ); ?>
+			</p>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Kde vkládat JSON-LD schéma?', 'seo-boost' ); ?></h3>
+			<table class="wp-list-table widefat fixed striped seob-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Možnost', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Pro koho', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Výhody / nevýhody', 'seo-boost' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><strong><?php esc_html_e( 'Pouze úvodní stránka', 'seo-boost' ); ?></strong></td>
+						<td><?php esc_html_e( 'Většina firem s jednou provozovnou', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Google crawluje homepage jako hlavní entitu. Schéma je přítomno tam, kde uživatel nejčastěji „přijde". Doporučeno.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><strong><?php esc_html_e( 'Kontaktní stránka', 'seo-boost' ); ?></strong></td>
+						<td><?php esc_html_e( 'Weby s oddělenou /kontakt stránkou obsahující mapu', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Kontextově relevantnější – schéma je na stránce, která adresu a provozovnu fyzicky prezentuje. Dobré alternativní řešení.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><strong><?php esc_html_e( 'Všechny stránky', 'seo-boost' ); ?></strong></td>
+						<td><?php esc_html_e( 'Malé weby (3–10 stránek)', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Silnější signal, Google schéma vidí při crawlu každé stránky. Na velkých webech zbytečně zvyšuje objem HTML a nemá přidanou hodnotu.', 'seo-boost' ); ?></td>
+					</tr>
+				</tbody>
+			</table>
+
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Validace a testování', 'seo-boost' ); ?></h3>
+			<p><?php esc_html_e( 'Vždy ověřte schéma po prvním nastavení i po každé změně. Doporučený postup:', 'seo-boost' ); ?></p>
+			<ol>
+				<li><?php esc_html_e( 'Klikněte na „Uložit nastavení".', 'seo-boost' ); ?></li>
+				<li><?php esc_html_e( 'Klikněte na „Náhled JSON-LD" – zobrazí se vygenerovaný blok.', 'seo-boost' ); ?></li>
+				<li>
+					<?php esc_html_e( 'Zkopírujte JSON a vložte do ', 'seo-boost' ); ?>
+					<a href="https://validator.schema.org/" target="_blank" rel="noopener">Schema.org Validátoru</a>
+					<?php esc_html_e( ' – ověřte strukturu.', 'seo-boost' ); ?>
+				</li>
+				<li>
+					<?php esc_html_e( 'Otevřete ', 'seo-boost' ); ?>
+					<a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener">Google Rich Results Test</a>
+					<?php esc_html_e( ' a zadejte URL vaší úvodní stránky – Google ukáže, zda schéma rozpoznal.', 'seo-boost' ); ?>
+				</li>
+				<li><?php esc_html_e( 'Spusťte NAP scan a opravte případné neshodné formáty telefonu.', 'seo-boost' ); ?></li>
+			</ol>
+
+			<hr style="margin:24px 0;">
+
 			<h3><?php esc_html_e( 'Konflikty s jinými pluginy', 'seo-boost' ); ?></h3>
+			<p>
+				<?php esc_html_e( 'Tento modul je navržen jako doplněk Rank Math Free – nepřekrývá žádnou jeho funkcionalitu. Konflikty mohou nastat jen s pluginy, které LocalBusiness schéma rovněž produkují:', 'seo-boost' ); ?>
+			</p>
 			<table class="wp-list-table widefat fixed striped seob-table">
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'Plugin', 'seo-boost' ); ?></th>
 						<th><?php esc_html_e( 'Stav', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Co to znamená', 'seo-boost' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
 					<tr>
 						<td>Rank Math Free</td>
-						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu – RM Free Local SEO neobsahuje.', 'seo-boost' ); ?></td>
+						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'RM Free Local SEO modul neobsahuje. Plně kompatibilní.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
 						<td>Rank Math Pro (Local SEO modul)</td>
-						<td style="color:red;">&#9888; <?php esc_html_e( 'Konflikt – RM Pro Local SEO modul spravuje LocalBusiness schéma. Tento modul se automaticky deaktivuje.', 'seo-boost' ); ?></td>
+						<td style="color:red;">&#9888; <?php esc_html_e( 'Konflikt', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'RM Pro spravuje LocalBusiness schéma. Tento modul se automaticky deaktivuje a nevloží nic – RM Pro má přednost. Pokud chcete používat tento modul, deaktivujte Local SEO modul v Rank Math Pro.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
 						<td>Yoast SEO Free</td>
-						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu – Yoast Free nevkládá LocalBusiness.', 'seo-boost' ); ?></td>
+						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Yoast Free nevkládá LocalBusiness. Plně kompatibilní.', 'seo-boost' ); ?></td>
 					</tr>
 					<tr>
-						<td>Yoast Local SEO</td>
-						<td style="color:red;">&#9888; <?php esc_html_e( 'Potenciální konflikt – pokud máte aktivní Yoast Local SEO plugin, může docházet k duplicitním JSON-LD blokům. Deaktivujte jeden z nich.', 'seo-boost' ); ?></td>
+						<td>Yoast Local SEO (premium plugin)</td>
+						<td style="color:orange;">&#9888; <?php esc_html_e( 'Pozor', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Yoast Local SEO je samostatný placený plugin vkládající LocalBusiness. Pokud ho máte aktivní, deaktivujte tento modul, abyste neměli dvě schémata najednou.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td>WPML, Polylang</td>
+						<td style="color:green;">&#10003; <?php esc_html_e( 'Bez konfliktu', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Vícejazyčné pluginy schéma neovlivňují. JSON-LD se vloží pro všechny jazykové verze stránky stejně.', 'seo-boost' ); ?></td>
 					</tr>
 				</tbody>
 			</table>
 
-			<h3><?php esc_html_e( 'Validace a testování', 'seo-boost' ); ?></h3>
-			<p>
-				<?php esc_html_e( 'Po uložení nastavení klikněte na "Náhled JSON-LD" a zkopírujte výstup do:', 'seo-boost' ); ?>
-			</p>
-			<ul>
-				<li><a href="https://validator.schema.org/" target="_blank" rel="noopener">Schema.org Validátor</a> – základní validace struktury</li>
-				<li><a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener">Google Rich Results Test</a> – ověří, zda Google schéma rozpozná</li>
-			</ul>
+			<hr style="margin:24px 0;">
+
+			<h3><?php esc_html_e( 'Časté chyby a jak je opravit', 'seo-boost' ); ?></h3>
+			<table class="wp-list-table widefat fixed striped seob-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Chyba', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Příčina', 'seo-boost' ); ?></th>
+						<th><?php esc_html_e( 'Řešení', 'seo-boost' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><?php esc_html_e( 'JSON-LD se nevkládá do stránky', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Chybí název firmy nebo je modul deaktivován z důvodu konfliktu.', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Vyplňte název firmy a uložte. Zkontrolujte banner konfliktu nahoře.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Schéma prochází Schema.org validátorem, ale NE Rich Results Testem', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Chybí povinné atributy pro konkrétní typ schématu (např. Restaurant vyžaduje servesCuisine pro rich results).', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Doplňte popis firmy. Pro speciální typy může být potřeba ručně dodat atributy přes theme hook.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Google nezobrazuje Knowledge Panel', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Knowledge Panel buduje Google postupně na základě všech signálů, ne jen schématu. Vyžaduje čas (týdny až měsíce).', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Ověřte a propojte Google Business Profile, zajistěte citace v kvalitních adresářích (Firmy.cz, Zlaté stránky), zajistěte konzistentní NAP.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'NAP scan hlásí neshodné formáty, ale nevím kde', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Telefon je na webu zadán různě v různých místech (zápatí, kontaktní stránka, patička článků).', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Klikněte na „Upravit" u problematické stránky a sjednoťte formát na ten z nastavení tohoto modulu.', 'seo-boost' ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'Otevírací doba se v JSON-LD nevyskytuje', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Pro všechny dny jsou prázdná pole bez zatrhnutí „Zavřeno".', 'seo-boost' ); ?></td>
+						<td><?php esc_html_e( 'Vyplňte konkrétní časy ve formátu HH:MM. Dny bez provozu zaškrtněte jako „Zavřeno".', 'seo-boost' ); ?></td>
+					</tr>
+				</tbody>
+			</table>
+
 		</div>
 	</details>
 </div>
