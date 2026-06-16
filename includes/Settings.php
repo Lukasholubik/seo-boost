@@ -16,6 +16,7 @@ class SEOB_Settings {
 	const SMART_INDEXING = 'seob_smart_indexing_settings';
 	const AI             = 'seob_ai_settings';
 	const PAGESPEED      = 'seob_pagespeed_settings';
+	const LOCAL_SEO      = 'seob_local_seo_settings';
 
 	/**
 	 * Výchozí hodnoty pro jednotlivé option klíče.
@@ -35,6 +36,8 @@ class SEOB_Settings {
 						'ai-queue'       => 0,
 						'pagespeed'      => 0,
 						'internal-links' => 0,
+					'hreflang'       => 0,
+					'local-seo'      => 0,
 					],
 				];
 
@@ -68,6 +71,37 @@ class SEOB_Settings {
 				return [
 					'enabled'     => 0,
 					'api_key_enc' => '',
+				];
+
+			case self::LOCAL_SEO:
+				return [
+					'business_name'    => '',
+					'business_type'    => 'LocalBusiness',
+					'description'      => '',
+					'phone'            => '',
+					'email'            => '',
+					'address_street'   => '',
+					'address_city'     => '',
+					'address_zip'      => '',
+					'address_country'  => 'CZ',
+					'lat'              => '',
+					'lng'              => '',
+					'ico'              => '',
+					'dic'              => '',
+					'price_range'      => '',
+					'image_url'        => '',
+					'image_id'         => 0,
+					'output_on'        => 'homepage',
+					'contact_page_id'  => 0,
+					'opening_hours'    => [
+						'Mo' => [ 'open' => '09:00', 'close' => '17:00', 'closed' => 0 ],
+						'Tu' => [ 'open' => '09:00', 'close' => '17:00', 'closed' => 0 ],
+						'We' => [ 'open' => '09:00', 'close' => '17:00', 'closed' => 0 ],
+						'Th' => [ 'open' => '09:00', 'close' => '17:00', 'closed' => 0 ],
+						'Fr' => [ 'open' => '09:00', 'close' => '17:00', 'closed' => 0 ],
+						'Sa' => [ 'open' => '',      'close' => '',      'closed' => 1 ],
+						'Su' => [ 'open' => '',      'close' => '',      'closed' => 1 ],
+					],
 				];
 
 			case self::SMART_INDEXING:

@@ -65,6 +65,14 @@ class SEOB_Admin {
 			add_submenu_page( self::MENU_SLUG, 'Interní prolinkování', 'Interní prolinkování', self::CAPABILITY, 'seob-internal-links', [ $this, 'page_internal_links' ] );
 		}
 
+		if ( SEOB_Module_Manager::is_active( 'hreflang' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'Hreflang Manager', 'Hreflang Manager', self::CAPABILITY, 'seob-hreflang', [ $this, 'page_hreflang' ] );
+		}
+
+		if ( SEOB_Module_Manager::is_active( 'local-seo' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'Local SEO (CZ)', 'Local SEO (CZ)', self::CAPABILITY, 'seob-local-seo', [ $this, 'page_local_seo' ] );
+		}
+
 		// Stav systému a Nastavení zůstávají vždy dostupné – odsud se moduly znovu zapínají.
 		add_submenu_page( self::MENU_SLUG, 'Stav systému', 'Stav systému', self::CAPABILITY, 'seob-status',   [ $this, 'page_status' ] );
 		add_submenu_page( self::MENU_SLUG, 'Nastavení',    'Nastavení',    self::CAPABILITY, 'seob-settings', [ $this, 'page_settings' ] );
@@ -175,6 +183,33 @@ class SEOB_Admin {
 				true
 			);
 			wp_localize_script( 'seob-internal-links', 'seobData', $shared_data );
+
+			return;
+		}
+
+		if ( str_ends_with( $hook, '_page_seob-hreflang' ) ) {
+			wp_enqueue_script(
+				'seob-hreflang',
+				SEOB_PLUGIN_URL . 'assets/admin/js/hreflang.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-hreflang', 'seobData', $shared_data );
+
+			return;
+		}
+
+		if ( str_ends_with( $hook, '_page_seob-local-seo' ) ) {
+			wp_enqueue_media();
+			wp_enqueue_script(
+				'seob-local-seo',
+				SEOB_PLUGIN_URL . 'assets/admin/js/local-seo.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-local-seo', 'seobData', $shared_data );
 
 			return;
 		}
@@ -339,6 +374,24 @@ class SEOB_Admin {
 		}
 
 		$this->render_template( 'page-internal-links.php' );
+	}
+
+	public function page_hreflang(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'hreflang' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['hreflang']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-hreflang.php' );
+	}
+
+	public function page_local_seo(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'local-seo' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['local-seo']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-local-seo.php' );
 	}
 
 	public function page_pdf_settings(): void {

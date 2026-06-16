@@ -56,6 +56,21 @@ $pagespeed = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
 						<input type="checkbox" name="modules_pagespeed" value="1" <?php checked( ! empty( $general['modules']['pagespeed'] ) ); ?>>
 						<?php esc_html_e( 'PageSpeed Insights (Lighthouse skóre a SEO doporučení pro vzorek stránek)', 'seo-boost' ); ?>
 					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_internal_links" value="1" <?php checked( ! empty( $general['modules']['internal-links'] ) ); ?>>
+						<?php esc_html_e( 'Interní prolinkování (link graf, orphan stránky, návrhy prolinkování)', 'seo-boost' ); ?>
+					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_hreflang" value="1" <?php checked( ! empty( $general['modules']['hreflang'] ) ); ?>>
+						<?php esc_html_e( 'Hreflang Manager (vícejazyčné weby – správa <link rel="alternate" hreflang>)', 'seo-boost' ); ?>
+					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_local_seo" value="1" <?php checked( ! empty( $general['modules']['local-seo'] ) ); ?>>
+						<?php esc_html_e( 'Local SEO CZ (LocalBusiness JSON-LD schéma s IČO/DIČ, GPS, otevírací dobou + NAP scanner)', 'seo-boost' ); ?>
+					</label>
 				</td>
 			</tr>
 			<tr>

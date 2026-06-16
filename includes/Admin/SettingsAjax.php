@@ -36,6 +36,9 @@ class SEOB_Settings_Ajax {
 				'gsc-insights'   => $this->bool_field( 'modules_gsc_insights' ),
 				'ai-queue'       => $this->bool_field( 'modules_ai_queue' ),
 				'pagespeed'      => $this->bool_field( 'modules_pagespeed' ),
+				'internal-links' => $this->bool_field( 'modules_internal_links' ),
+				'hreflang'       => $this->bool_field( 'modules_hreflang' ),
+				'local-seo'      => $this->bool_field( 'modules_local_seo' ),
 			],
 		];
 

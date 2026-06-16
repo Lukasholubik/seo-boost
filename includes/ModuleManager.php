@@ -58,6 +58,18 @@ class SEOB_Module_Manager {
 			'classes'     => [ 'SEOB_InternalLinks_Ajax', 'SEOB_InternalLinks_Indexer', 'SEOB_InternalLinks_MetaBox' ],
 			'depends_on'  => [],
 		],
+		'hreflang' => [
+			'label'       => 'Hreflang Manager',
+			'description' => 'Spravuje hreflang skupiny a vkládá <link rel="alternate" hreflang> tagy pro vícejazyčné weby.',
+			'classes'     => [ 'SEOB_Hreflang_Ajax', 'SEOB_Hreflang_Manager' ],
+			'depends_on'  => [],
+		],
+		'local-seo' => [
+			'label'       => 'Local SEO (CZ)',
+			'description' => 'Vkládá LocalBusiness JSON-LD schéma s IČO/DIČ, GPS souřadnicemi a otevírací dobou. Součástí je NAP scanner pro konzistenci kontaktních údajů.',
+			'classes'     => [ 'SEOB_LocalSeo_Ajax', 'SEOB_LocalSeo_Frontend' ],
+			'depends_on'  => [],
+		],
 	];
 
 	/**

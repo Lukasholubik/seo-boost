@@ -7,6 +7,89 @@
 
 ## Záznamy
 
+### 2026-06-16 (update 7) – M11: Local SEO (CZ)
+
+**Nové soubory:**
+- `includes/LocalSeo/Frontend.php` – třída `SEOB_LocalSeo_Frontend`: výstup LocalBusiness JSON-LD na `wp_head` (priorita 5), detekce konfliktu RM Local SEO, seznam 40+ typů podnikání
+- `includes/LocalSeo/Ajax.php` – AJAX akce: `seob_local_seo_save` (uložení formuláře), `seob_local_seo_preview` (JSON-LD z uloženého nastavení), `seob_local_seo_nap_scan` (skenovani webu – telefon, město, název)
+- `templates/admin/page-local-seo.php` – admin stránka: formulář (základní info, adresa, GPS, IČO/DIČ, otevírací doba, obrázek/logo, kde vkládat), náhled JSON-LD, NAP scan výsledky, dokumentace jako collapsible `<details>`
+- `assets/admin/js/local-seo.js` – JS: toggle otevírací doby (disabled při Zavřeno), mediální výběr obrázku (wp.media), uložení (AJAX), náhled JSON-LD, NAP scan s barevně odlišenou tabulkou výsledků
+- `tests/Unit/LocalSeo/FrontendTest.php` – 11 unit testů pokrývajících: detekci konfliktu, build_schema (minimální, adresa, GPS, IČO/DIČ, otevírací doba, výchozí type, částečná adresa), business_types()
+- `docs/modules/local-seo.md` – kompletní dokumentace modulu
+
+**Upravené soubory:**
+- `includes/Settings.php` – přidán `const LOCAL_SEO = 'seob_local_seo_settings'` + výchozí nastavení (20+ polí, vč. otevírací doby Mo-Su)
+- `includes/Settings.php` – přidán `local-seo => 0` do defaults modulů
+- `includes/ModuleManager.php` – zaregistrován modul `local-seo` s třídami `SEOB_LocalSeo_Ajax`, `SEOB_LocalSeo_Frontend`
+- `includes/Admin/Admin.php` – přidán submenu item, enqueue blok (`wp_enqueue_media` + `local-seo.js`), metoda `page_local_seo()`
+- `includes/Admin/SettingsAjax.php` – přidán `local-seo` do modules pole při ukládání
+- `templates/admin/page-settings.php` – přidán checkbox pro `local-seo`
+- `includes/Health/HealthChecks.php` – přidány case `hreflang` + `local-seo` a metody `hreflang_checks()`, `local_seo_checks()`
+- `seo-boost.php` – version `0.6.0 → 0.7.0`, DB version `0.7.0 → 0.8.0`, přidány soubory LocalSeo
+
+**NAP scanner – logika:**
+- Normalizuje telefon (strippuje vše kromě číslic a `+`)
+- Regex hledá sekvence 8–20 znaků v obsahu stránek
+- Označí výskyty kde formát nesouhlasí s referenčním zápisem z nastavení
+
+**Detekce konfliktu:**
+- RM Local SEO: třída `RankMath\Modules\LocalSeo\LocalSeo` nebo option `rank_math_modules` obsahuje `local-seo`
+- Yoast Local SEO: dokumentováno v admin UI, bez auto-detekce (Yoast Local SEO je samostatný plugin bez jednoznačné třídy)
+
+---
+
+### 2026-06-16 (update 6) – M8: Hreflang testy + dokumentace + oprava nastavení
+
+**Testy (`tests/Unit/Hreflang/ManagerTest.php`, 8 testů, 22 assertions):**
+- `test_no_conflict_in_clean_test_environment` – has_conflict() → false bez RM Pro / Yoast
+- `test_not_multilingual_in_clean_test_environment` – detect_multilingual() → false v čistém prostředí
+- `test_get_tags_returns_empty_array_when_post_has_no_group` – post mimo skupinu → prázdné pole
+- `test_get_tags_returns_one_tag_per_member` – 2 members → 2 tagy (cs, en)
+- `test_get_tags_adds_x_default_after_marked_member` – is_x_default=1 → 3 tagy (cs, x-default, en)
+- `test_x_default_url_matches_marked_member_url` – URL x-defaultu = URL označeného membera
+- `test_get_tags_skips_member_with_no_permalink` – permalink=false → member přeskočen
+- `test_get_tags_with_three_languages` – 3 jazyky + x-default → 4 tagy
+- `tests/bootstrap.php` – přidána konstanta `ARRAY_A` (potřeba pro $wpdb mock)
+- Celá sada: **64/64 OK**
+
+**Dokumentace:**
+- `templates/admin/page-hreflang.php` – přidána sekce „Automatické mapování skupin (připravováno)": popis tří strategií (Polylang integrace, WPML integrace, slug shoda), UI flow, poznámka že ručně vytvořené skupiny zůstanou nedotčeny
+- `docs/modules/hreflang.md` – totéž + implementační poznámky pro budoucí vývoj
+
+**Oprava nastavení:**
+- `templates/admin/page-settings.php` – přidány chybějící checkboxy pro `internal-links` a `hreflang`
+- `includes/Admin/SettingsAjax.php` – přidány `internal-links` a `hreflang` do modules pole při ukládání
+
+---
+
+### 2026-06-16 (update 5) – M8: Hreflang Manager
+
+**Nové soubory:**
+- `includes/Hreflang/Manager.php` – frontend output `<link rel="alternate" hreflang>` tagů; detekce konfliktu (RM Pro / Yoast Premium) a detekce vícejazyčnosti (WPML / Polylang / TranslatePress)
+- `includes/Hreflang/Ajax.php` – AJAX handlery: `load_groups`, `save_group`, `delete_group`, `search_posts`, `validate`
+- `templates/admin/page-hreflang.php` – admin stránka s group listingem + modal pro editaci skupin
+- `assets/admin/js/hreflang.js` – card-based UI, inline autocomplete vyhledávání stránek, validátor
+
+**Nové DB tabulky (`SEOB_DB_VERSION` → `0.7.0`):**
+- `seo_booster_hreflang_groups` (id, name, created_at)
+- `seo_booster_hreflang_members` (id, group_id, page_id, locale, is_x_default)
+- `SEOB_Database::hreflang_groups_table()` + `hreflang_members_table()` helpers
+
+**Modifikované soubory:**
+- `includes/Database/Database.php` – +2 table helpers
+- `includes/Activator.php` – +2 CREATE TABLE v `create_tables()`
+- `includes/Settings.php` – `'hreflang' => 0` do modules defaults
+- `includes/ModuleManager.php` – `'hreflang'` module registrace (`SEOB_Hreflang_Ajax`, `SEOB_Hreflang_Manager`)
+- `includes/Admin/Admin.php` – submenu, enqueue_assets, `page_hreflang()` metoda
+- `seo-boost.php` – Hreflang soubory v `$seob_files`; `SEOB_VERSION` → `0.6.0`, plugin header Version → `0.6.0`
+
+**Klíčové chování:**
+- Skupiny = N jazykových verzí 1 dokumentu; reciprocita je zaručena automaticky (všichni memberové vzájemně odkazují)
+- Výstup hreflang tagů je blokován, pokud je detekován RM Pro nebo Yoast Premium
+- Validátor hlásí: stránka ve více skupinách, nepublikované stránky
+
+---
+
 ### 2026-06-16 (update 4) – M6: SEO zdraví prolinkování v admin přehledu (Interní prolinkování)
 
 **ScanRunner.php `get_results()`:**

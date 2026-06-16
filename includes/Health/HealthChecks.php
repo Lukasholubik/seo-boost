@@ -94,6 +94,10 @@ class SEOB_Health_Checks {
 				return self::pagespeed_checks();
 			case 'internal-links':
 				return self::internal_links_checks();
+			case 'hreflang':
+				return self::hreflang_checks();
+			case 'local-seo':
+				return self::local_seo_checks();
 			default:
 				return [];
 		}
@@ -483,6 +487,123 @@ class SEOB_Health_Checks {
 				'action_url'   => null,
 			];
 		}
+
+		return $checks;
+	}
+
+	private static function hreflang_checks(): array {
+		$checks = [];
+
+		$conflict = \SEOB_Hreflang_Manager::has_conflict();
+
+		if ( $conflict ) {
+			$checks[] = [
+				'id'           => 'hreflang_conflict',
+				'label'        => 'Konflikt pluginů',
+				'status'       => 'critical',
+				'message'      => 'Byl detekován Rank Math Pro nebo Yoast Premium, které již spravují hreflang tagy. Modul Hreflang Manager je automaticky deaktivován, aby nevznikly duplicity.',
+				'action_label' => 'Zobrazit dokumentaci',
+				'action_url'   => admin_url( 'admin.php?page=seob-hreflang' ),
+			];
+
+			return $checks;
+		}
+
+		$multilingual = \SEOB_Hreflang_Manager::detect_multilingual();
+
+		if ( $multilingual['active'] ) {
+			$checks[] = [
+				'id'           => 'hreflang_multilingual',
+				'label'        => 'Vícejazyčný plugin',
+				'status'       => 'warning',
+				'message'      => sprintf( 'Byl detekován %s. Hreflang skupiny v tomto modulu se nekombinují s jeho nastavením – ověřte, zda hreflang tagy neprodukuje i %s (mohly by být duplicitní).', esc_html( $multilingual['plugin'] ), esc_html( $multilingual['plugin'] ) ),
+				'action_label' => 'Otevřít Hreflang Manager',
+				'action_url'   => admin_url( 'admin.php?page=seob-hreflang' ),
+			];
+		}
+
+		global $wpdb;
+		$members_table = SEOB_Database::hreflang_members_table();
+		$group_count   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}seo_booster_hreflang_groups" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$checks[] = [
+			'id'           => 'hreflang_groups',
+			'label'        => 'Skupiny',
+			'status'       => $group_count > 0 ? 'good' : 'warning',
+			'message'      => $group_count > 0
+				? sprintf( 'Nakonfigurováno %d hreflang skupin.', $group_count )
+				: 'Zatím nejsou definovány žádné hreflang skupiny – modul nevkládá žádné tagy.',
+			'action_label' => 0 === $group_count ? 'Otevřít Hreflang Manager' : null,
+			'action_url'   => 0 === $group_count ? admin_url( 'admin.php?page=seob-hreflang' ) : null,
+		];
+
+		return $checks;
+	}
+
+	private static function local_seo_checks(): array {
+		$checks = [];
+		$s      = \SEOB_Settings::get( \SEOB_Settings::LOCAL_SEO );
+
+		if ( \SEOB_LocalSeo_Frontend::has_rank_math_local_seo() ) {
+			$checks[] = [
+				'id'           => 'local_seo_rm_conflict',
+				'label'        => 'Rank Math Local SEO',
+				'status'       => 'critical',
+				'message'      => 'Rank Math Local SEO modul je aktivní a spravuje LocalBusiness schéma. Tento modul je automaticky deaktivován, aby nevznikly duplicitní JSON-LD bloky.',
+				'action_label' => 'Otevřít Local SEO nastavení',
+				'action_url'   => admin_url( 'admin.php?page=seob-local-seo' ),
+			];
+
+			return $checks;
+		}
+
+		if ( empty( $s['business_name'] ) ) {
+			$checks[] = [
+				'id'           => 'local_seo_name_missing',
+				'label'        => 'Název firmy',
+				'status'       => 'critical',
+				'message'      => 'Není vyplněn název firmy – JSON-LD schéma se nevkládá. Vyplňte alespoň název firmy v nastavení modulu.',
+				'action_label' => 'Otevřít Local SEO nastavení',
+				'action_url'   => admin_url( 'admin.php?page=seob-local-seo' ),
+			];
+
+			return $checks;
+		}
+
+		$checks[] = [
+			'id'     => 'local_seo_name',
+			'label'  => 'Název firmy',
+			'status' => 'good',
+			'message'      => sprintf( 'Název firmy nastaven: %s (%s).', esc_html( $s['business_name'] ), esc_html( $s['business_type'] ) ),
+			'action_label' => null,
+			'action_url'   => null,
+		];
+
+		$has_address = ! empty( $s['address_street'] ) || ! empty( $s['address_city'] );
+
+		$checks[] = [
+			'id'           => 'local_seo_address',
+			'label'        => 'Adresa',
+			'status'       => $has_address ? 'good' : 'warning',
+			'message'      => $has_address
+				? sprintf( 'Adresa nastavena: %s, %s %s.', esc_html( $s['address_street'] ), esc_html( $s['address_zip'] ), esc_html( $s['address_city'] ) )
+				: 'Adresa není vyplněna – schéma bude méně kompletní.',
+			'action_label' => $has_address ? null : 'Doplnit adresu',
+			'action_url'   => $has_address ? null : admin_url( 'admin.php?page=seob-local-seo' ),
+		];
+
+		$has_gps = ! empty( $s['lat'] ) && ! empty( $s['lng'] );
+
+		$checks[] = [
+			'id'           => 'local_seo_gps',
+			'label'        => 'GPS souřadnice',
+			'status'       => $has_gps ? 'good' : 'warning',
+			'message'      => $has_gps
+				? sprintf( 'GPS souřadnice nastaveny: %.6f, %.6f.', (float) $s['lat'], (float) $s['lng'] )
+				: 'GPS souřadnice nejsou vyplněny (pole geo bude chybět v JSON-LD).',
+			'action_label' => $has_gps ? null : 'Doplnit GPS',
+			'action_url'   => $has_gps ? null : admin_url( 'admin.php?page=seob-local-seo' ),
+		];
 
 		return $checks;
 	}
