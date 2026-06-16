@@ -7,6 +7,30 @@
 
 ## Záznamy
 
+### 2026-06-16 (update 16) – STAV: čekající body M3 (neověřeno)
+
+**Kde jsme skončili:**
+Fix scanů (update 15) byl nasazen, ale nebyly ještě ověřeny tyto dva body z předchozí práce:
+
+**2. Fix hinty v single URL validátoru** *(implementováno v update 12-13, neověřeno)*
+Při testování jedné URL (`Otestovat URL` tlačítko v JSON-LD Validátoru) má každé varování/chyba zobrazit barevný blok s „Jak opravit:" textem – stejně jako v plném scanu.
+- Soubory: `json-ld.js::renderSingleResult()`, `PageScanner::get_fix_hint()`
+- Stav: kód je, ale scan nefungoval → nebylo jak ověřit
+
+**3. JSON-LD sekce v Audit Dashboardu** *(implementováno v update 14, neověřeno)*
+V inline panelu (tlačítko „Opravit" u každé stránky v Audit Dashboardu) přibyla sekce JSON-LD s tlačítkem „Zkontrolovat JSON-LD". Kliknutím validuje stránku na místě a zobrazí výsledky s fix hinty + odkaz „Otevřít editor".
+- Soubory: `audit-dashboard.js::renderJsonLdAuditResult()`, `page-dashboard.php` (seob-jsonld-panel), `Admin.php` (jsonLdActive v seobData)
+- Stav: kód je, scan nefungoval → panel nebyl jak otestovat
+
+**Co dál (po návratu k M3):**
+1. Ověřit fix hinty v single URL validátoru
+2. Ověřit JSON-LD panel v Audit Dashboardu (tlačítko „Opravit" → sekce JSON-LD)
+3. Pak M4: Core Web Vitals RUM
+
+**Přerušeno:** Uživatel přešel na urgentní fix v jiném pluginu na LIVE produkci.
+
+---
+
 ### 2026-06-16 (update 15) – Fix: WP-Cron SSL + Audit Scanner timeout → oba scany opraveny
 
 **Problem:** Oba scany (JSON-LD Validator + Audit Dashboard) byly po zmacknuti stuck na 0/49 stranek.
