@@ -152,11 +152,12 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
     </div>
   </details>
 
-  <details style="margin-bottom:0;">
+  <details id="seob-jsgap-fixes" style="margin-bottom:0;">
     <summary style="cursor:pointer;font-weight:600;font-size:14px;padding:8px 0;">&#9654; Jak opravit jednotlivé problémy (podrobný návod)</summary>
-    <div style="padding:12px 0 0 16px;line-height:1.7;color:#333;">
+    <p style="color:#888;font-size:12px;margin:4px 0 16px 0;">Kliknutím na název problému v tabulce výsledků se přeskrolujete přesně sem na konkrétní návod.</p>
+    <div style="padding:0 0 0 0;line-height:1.7;color:#333;">
 
-      <div style="background:#fff3cd;border-left:4px solid #e65100;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-fix-h1_missing_in_raw" style="background:#fff3cd;border-left:4px solid #e65100;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; H1 chybí v raw HTML</strong> <span style="color:#888;font-size:12px;">(Gap score +35 – nejzávažnější)</span>
         <p style="margin:6px 0 4px;">Váš hlavní nadpis je vygenerován JavaScriptem – Google ho nevidí a neví, o čem stránka je.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -168,7 +169,7 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-fix-h1_mismatch" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; H1 nesouhlasí s tím, co vidí uživatel</strong> <span style="color:#888;font-size:12px;">(Gap score +20)</span>
         <p style="margin:6px 0 4px;">V raw HTML je jiný text H1 než po načtení JavaScriptu. Google indexuje špatný nadpis.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -179,7 +180,7 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-fix-title_mismatch" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; Title stránky nesouhlasí</strong> <span style="color:#888;font-size:12px;">(Gap score +15)</span>
         <p style="margin:6px 0 4px;">Tag <code>&lt;title&gt;</code> v raw HTML se liší od titulku, který vidí prohlížeč po načtení JS.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -190,7 +191,7 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-fix-meta_desc_missing_in_raw" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; Meta description chybí v raw HTML</strong> <span style="color:#888;font-size:12px;">(Gap score +15)</span>
         <p style="margin:6px 0 4px;">Popis stránky pro vyhledávače není přítomen v HTML – je přidáván až JavaScriptem nebo chybí úplně.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -201,7 +202,7 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-fix-json_ld_gap" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; Strukturovaná data (JSON-LD) chybí v raw HTML</strong> <span style="color:#888;font-size:12px;">(Gap score +20)</span>
         <p style="margin:6px 0 4px;">Vaše schémata (Article, Product, FAQ, Review...) jsou vkládána JavaScriptem. Google je nemusí vidět → žádné rich snippety ve výsledcích.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -212,7 +213,7 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-fix-text_ratio" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; Příliš málo textu v raw HTML</strong> <span style="color:#888;font-size:12px;">(Gap score +10 varování / +20 kritické)</span>
         <p style="margin:6px 0 4px;">Hlavní textový obsah stránky je zobrazován přes JavaScript (lazy load obsahu, akordeony, záložky načítané AJAXem). Google vidí prázdnou nebo chudou stránku.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>

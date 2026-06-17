@@ -152,6 +152,17 @@
     });
   }
 
+  // Mapování typu problému na kotvu v dokumentaci a čitelný název
+  var ISSUE_META = {
+    'h1_missing_in_raw':        { anchor: 'seob-fix-h1_missing_in_raw',        label: 'H1 chybí v raw HTML' },
+    'h1_mismatch':              { anchor: 'seob-fix-h1_mismatch',              label: 'H1 nesouhlasí' },
+    'title_mismatch':           { anchor: 'seob-fix-title_mismatch',           label: 'Title nesouhlasí' },
+    'meta_desc_missing_in_raw': { anchor: 'seob-fix-meta_desc_missing_in_raw', label: 'Meta popis chybí' },
+    'json_ld_gap':              { anchor: 'seob-fix-json_ld_gap',              label: 'JSON-LD chybí' },
+    'text_ratio_critical':      { anchor: 'seob-fix-text_ratio',               label: 'Málo textu (kritické)' },
+    'text_ratio_warning':       { anchor: 'seob-fix-text_ratio',               label: 'Méně textu v raw HTML' },
+  };
+
   function scoreClass(score) {
     if (score >= 50) return 'seob-error';
     if (score >= 20) return 'seob-warn';
@@ -182,7 +193,14 @@
       tr.append('<td>' + (row.rendered_json_ld_count || 0) + ' / ' + (row.raw_json_ld_count || 0) + '</td>');
 
       var issueHtml = issues.length
-        ? issues.map(function (i) { return '<div class="' + scoreClass(i.severity === 'critical' ? 60 : 25) + '" title="' + escHtml(i.message) + '">• ' + escHtml(i.type.replace(/_/g, ' ')) + '</div>'; }).join('')
+        ? issues.map(function (i) {
+            var meta  = ISSUE_META[i.type] || { anchor: '', label: i.type.replace(/_/g, ' ') };
+            var cls   = scoreClass(i.severity === 'critical' ? 60 : 25);
+            var inner = meta.anchor
+              ? '<a class="seob-fix-link" href="#' + meta.anchor + '" title="' + escHtml(i.message) + '" style="color:inherit;text-decoration:underline dotted;cursor:pointer;">' + escHtml(meta.label) + '</a>'
+              : escHtml(meta.label);
+            return '<div class="' + cls + '" style="white-space:nowrap;">• ' + inner + '</div>';
+          }).join('')
         : '<span class="seob-ok">—</span>';
       tr.append('<td>' + issueHtml + '</td>');
 
@@ -195,6 +213,26 @@
     table.append(tbody);
     wrap.html(table);
   }
+
+  // Proklik z tabulky na dokumentační sekci – otevře details + přeskrolluje + zvýrazní
+  $(document).on('click', '.seob-fix-link', function (e) {
+    e.preventDefault();
+    var anchor = $(this).attr('href').replace('#', '');
+    var target = document.getElementById(anchor);
+    if (!target) return;
+
+    // Otevři <details> sekci s návody (kdyby byla collapsed)
+    var details = document.getElementById('seob-jsgap-fixes');
+    if (details) details.open = true;
+
+    // Počkej jeden tick (details musí být open), pak scroll + highlight
+    setTimeout(function () {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.style.transition = 'box-shadow 0.3s';
+      target.style.boxShadow  = '0 0 0 3px #2271b1';
+      setTimeout(function () { target.style.boxShadow = ''; }, 2200);
+    }, 80);
+  });
 
   $(document).on('click', '.seob-jsgap-analyze', function () {
     var btn  = $(this).prop('disabled', true).text('…');
