@@ -93,6 +93,23 @@
     runScanBatch();
   });
 
+  // ── Reset localStorage rate limitů ───────────────────────────────────────
+
+  $('#seob-jsgap-clear-ls-btn').on('click', function () {
+    var count = 0;
+    try {
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('seob_jsgap_') === 0) keys.push(k);
+      }
+      keys.forEach(function (k) { localStorage.removeItem(k); count++; });
+    } catch (e) {}
+    var msg = $('#seob-jsgap-clear-ls-msg');
+    msg.text('Smazáno ' + count + ' záznamů. Znovu navštivte stránky webu – snapshoty se odešlou.').show();
+    setTimeout(function () { msg.hide(); }, 6000);
+  });
+
   // ── Statistiky ────────────────────────────────────────────────────────────
 
   function loadStats() {

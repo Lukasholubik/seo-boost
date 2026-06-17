@@ -62,6 +62,8 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
   <?php endif; ?>
 
   <button id="seob-jsgap-run-btn" class="button button-primary">&#9654; Spustit analýzu</button>
+  <button id="seob-jsgap-clear-ls-btn" class="button" style="margin-left:8px;" title="Vymaže záznamy v localStorage prohlížeče – beacon poté znovu odešle snapshoty ze stránek, které jste dnes navštívili">&#128465; Reset rate limitů</button>
+  <span id="seob-jsgap-clear-ls-msg" style="display:none;margin-left:10px;font-size:12px;color:#1a7f37;"></span>
 
   <!-- Progress bar -->
   <div id="seob-jsgap-progress-wrap" style="display:none;margin-top:14px;max-width:500px;">

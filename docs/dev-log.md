@@ -7,6 +7,23 @@
 
 ## Záznamy
 
+### 2026-06-17 – v0.9.0 – beacon fetch + reset localStorage
+
+**Opravené chyby:**
+- **Beacon `sendBeacon` nevznikal snapshot pro nové stránky** – `sendBeacon` vrátí `true` (uložil do fronty), ale v local prostředí (Flywheel) HTTP request nemusí dorazit. `markSent()` byl přitom zavolán ihned → localStorage blokoval opakování. Oprava: nahrazen `fetch` s `keepalive:true`, `markSent` voláme až po potvrzení HTTP 204.
+- **DOMContentLoaded bez zpoždění** – obsah Elementoru nemusel být plně dorenderován. Oprava: 800ms delay i pro `DOMContentLoaded` event (sjednoceno s druhou cestou).
+- **localStorage TTL 7 dní** – příliš dlouhý pro vývoj. Sníženo na 24 hodin.
+
+**Nové funkce:**
+- Tlačítko **"Reset rate limitů"** v admin – vymaže všechny `seob_jsgap_*` klíče z localStorage prohlížeče. Po kliknutí beacon při dalším navštívení stránek odešle snapshoty znovu.
+
+**Upravené soubory:**
+- `assets/js/js-render-gap-beacon.js` – fetch místo sendBeacon, 800ms delay vždy, TTL 24h
+- `templates/admin/page-js-render-gap.php` – tlačítko Reset rate limitů
+- `assets/admin/js/js-render-gap.js` – handler pro Reset tlačítko
+
+---
+
 ### 2026-06-17 – v0.9.0 – bugfixy JS Render Gap + CWV agregace
 
 **Opravené chyby:**
