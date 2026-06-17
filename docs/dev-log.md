@@ -7,6 +7,24 @@
 
 ## Záznamy
 
+### 2026-06-17 – v0.9.0 – oprava false positive json_ld_gap
+
+**Problém:**
+`json_ld_gap` hlásil false positive pro stránky s Rank Math – zobrazovalo "Extra JSON-LD (JS?)" i když Rank Math funguje správně a JSON-LD je v raw HTML.
+
+**Kořenová příčina:**
+`Comparator::get_raw_via_wp()` počítal **schema objekty z DB** (`count(\RankMath\Schema\DB::get_schemas($post_id))`), ale beacon počítá **`<script>` tagy** v rendered DOM. Rank Math vždy outputuje VŠECHNA schémata do JEDNOHO `<script>` tagu přes `@graph` – takže `count(schemas) = 2` ale skutečné tagy = 1. Porovnávaly se různé jednotky.
+
+**Oprava:**
+- `Comparator.php`: `raw_json_ld` = vždy 1 pokud Rank Math má jakékoliv schéma (jeden tag), ne `count(schemas)`.
+- `compare()`: message rozlišuje dva scénáře: raw=0 (kritické, JSON-LD zcela chybí) vs raw≥1 (varování, Rank Math funguje, extra blok přidal JS/Elementor/GTM).
+- `js-render-gap.js`: label v tabulce `"JSON-LD chybí"` → `"Extra JSON-LD (JS?)"` (přesnější název).
+- Dokumentace v `page-js-render-gap.php` přepracována – vysvětluje oba scénáře + návod jak zjistit zdroj extra tagu (View Source vs DevTools Console).
+
+**Commit:** `56fc7a2`
+
+---
+
 ### 2026-06-17 – v0.9.0 – beacon fetch + reset localStorage
 
 **Opravené chyby:**
