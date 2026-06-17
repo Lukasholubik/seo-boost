@@ -139,8 +139,105 @@
 
       var warnEl = document.getElementById('seob-cwv-no-data-warn');
       if (warnEl) warnEl.style.display = d.samples_24h === 0 ? 'block' : 'none';
+
+      showDiagnostics(d);
     });
   }
+
+  // ── Stručné příčiny pro diagnostický panel ────────────────────────────────
+  var DIAG = {
+    LCP: {
+      ni:   'Hero obrázek je velký nebo chybí preload. Server odpovídá pomalu (viz TTFB).',
+      poor: 'Stránka se načítá velmi pomalu – uživatelé ji pravděpodobně opouštějí. Kritické pro pozice v Google.',
+      tips: ['Zkontrolujte, zda hero obrázek nemá <code>loading="lazy"</code> – odstraňte to', 'Přidejte <code>fetchpriority="high"</code> na hero obrázek', 'Aktivujte stránkový cache (WP Rocket, LiteSpeed Cache)', 'Konvertujte obrázky na WebP'],
+    },
+    INP: {
+      ni:   'Stránka reaguje na klikání se zpožděním – obvykle příliš mnoho nebo příliš těžký JavaScript.',
+      poor: 'Stránka téměř nereaguje na interakce. Zákazník si produkt nepřidá do košíku, odejde.',
+      tips: ['Identifikujte těžké JS pluginy v Chrome DevTools → Performance', 'Aktivujte "Delay JS" ve WP Rocket', 'Zkontrolujte cookies/GDPR plugin (OneTrust, Cookiebot jsou těžké)', 'Aktualizujte Elementor a page builder na nejnovější verzi'],
+    },
+    CLS: {
+      ni:   'Stránka mírně "poskakuje" při načítání – chybí rozměry obrázkům nebo rezervace pro bannery.',
+      poor: 'Stránka výrazně poskakuje – uživatelé klikají na špatná místa. Silný negativní dopad na UX.',
+      tips: ['Přidejte <code>width</code> a <code>height</code> ke všem obrázkům v HTML', 'Vyhraďte místo pro reklamy pomocí <code>min-height</code> v CSS', 'Přidejte <code>font-display: swap</code> do CSS vašich fontů', 'Obalte YouTube/Google Maps do kontejneru s <code>aspect-ratio: 16/9</code>'],
+    },
+    FCP: {
+      ni:   'Uživatel čeká na první obsah. Nejčastěji render-blocking CSS nebo pomalý server.',
+      poor: 'Stránka se zdá prázdná příliš dlouho – většina návštěvníků odejde ještě před načtením.',
+      tips: ['Aktivujte stránkový cache (WP Rocket, LiteSpeed Cache)', 'Minifikujte a slučte CSS/JS soubory', 'Přidejte kritické CSS inline do <code>&lt;head&gt;</code>', 'Preloadujte hlavní font: <code>&lt;link rel="preload" as="font"&gt;</code>'],
+    },
+    TTFB: {
+      ni:   'Server odpovídá pomalu – žádný cache, pomalý PHP/databáze nebo přetížený hosting.',
+      poor: 'Server je velmi pomalý. Vše ostatní (LCP, FCP) bude špatné, dokud neopravíte TTFB.',
+      tips: ['Aktivujte stránkový cache – TTFB klesne na &lt; 100 ms okamžitě', 'Nainstalujte Query Monitor a najděte pomalé DB dotazy', 'Aktivujte Redis Object Cache (u hostingů jako Kinsta, WP Engine)', 'Zvažte Cloudflare (zdarma) – cachuje stránky na CDN uzlech'],
+    },
+  };
+
+  function showDiagnostics(d) {
+    var el = document.getElementById('seob-cwv-diagnostics');
+    if (!el) return;
+
+    var metric = (d.metric || currentMetric).toUpperCase();
+    var t      = THRESHOLDS[metric];
+    var diag   = DIAG[metric];
+    if (!t || !diag) { el.innerHTML = ''; return; }
+
+    // Najdi nejnovější hodnotu (mobile nebo desktop)
+    var allVals = (d.mobile || []).concat(d.desktop || []).filter(function (v) { return v !== null && v !== undefined; });
+    if (!allVals.length) { el.innerHTML = ''; return; }
+    var latest = allVals[allVals.length - 1];
+
+    var rating, borderColor, bgColor, icon, ratingLabel;
+    if (latest <= t.good) {
+      rating = 'good'; borderColor = '#1a7f37'; bgColor = '#f0fff4'; icon = '✓'; ratingLabel = 'Dobrý';
+    } else if (latest <= t.poor) {
+      rating = 'ni'; borderColor = '#e65100'; bgColor = '#fff8e1'; icon = '⚠'; ratingLabel = 'Potřebuje zlepšení';
+    } else {
+      rating = 'poor'; borderColor = '#cf222e'; bgColor = '#fff0f0'; icon = '✗'; ratingLabel = 'Špatný';
+    }
+
+    var formatted = formatValue(latest, metric);
+
+    if (rating === 'good') {
+      el.innerHTML = '<div style="padding:10px 16px;background:' + bgColor + ';border-left:4px solid ' + borderColor + ';border-radius:0 4px 4px 0;">' +
+        '<strong style="color:' + borderColor + ';">' + icon + ' ' + metric + ': ' + ratingLabel + ' (' + formatted + ')</strong>' +
+        ' – pod hranicí Google doporučení. Jen udržujte!' +
+        '</div>';
+      return;
+    }
+
+    var tipsHtml = diag.tips.map(function (tip, i) {
+      return '<li style="margin-bottom:4px;">' + tip + '</li>';
+    }).join('');
+
+    el.innerHTML = '<div style="padding:12px 16px;background:' + bgColor + ';border-left:4px solid ' + borderColor + ';border-radius:0 4px 4px 0;">' +
+      '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">' +
+        '<strong style="font-size:14px;color:' + borderColor + ';">' + icon + ' ' + metric + ': ' + ratingLabel + ' (' + formatted + ')</strong>' +
+        '<a class="seob-cwv-diag-link" href="#seob-cwv-fix-' + metric.toLowerCase() + '" style="font-size:12px;color:#2271b1;white-space:nowrap;">→ Podrobný návod opravy ↓</a>' +
+      '</div>' +
+      '<p style="margin:6px 0 6px;color:#555;font-size:13px;">' + (rating === 'poor' ? diag.poor : diag.ni) + '</p>' +
+      '<strong style="font-size:12px;color:#333;">Nejčastější příčiny a první kroky:</strong>' +
+      '<ol style="margin:4px 0 0 18px;font-size:13px;">' + tipsHtml + '</ol>' +
+    '</div>';
+  }
+
+  // Proklik z diagnostiky na konkrétní sekci návodu
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest('.seob-cwv-diag-link');
+    if (!link) return;
+    e.preventDefault();
+    var anchor = link.getAttribute('href').replace('#', '');
+    var target = document.getElementById(anchor);
+    if (!target) return;
+    var details = document.getElementById('seob-cwv-fixes');
+    if (details) details.open = true;
+    setTimeout(function () {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.style.transition = 'box-shadow 0.3s';
+      target.style.boxShadow  = '0 0 0 3px #2271b1';
+      setTimeout(function () { target.style.boxShadow = ''; }, 2200);
+    }, 80);
+  });
 
   function loadWorstUrls() {
     var tbody = document.getElementById('seob-cwv-urls-tbody');

@@ -68,6 +68,8 @@ $samples_24h  = (int) $wpdb->get_var(
   <div style="margin-top:10px;font-size:12px;color:#72767d;">
     Přerušovaná zelená linie = hranice „Dobrý", červená = „Špatný" dle Google Core Web Vitals.
   </div>
+  <!-- Dynamická diagnostika – vyplní JS po načtení dat -->
+  <div id="seob-cwv-diagnostics" style="margin-top:12px;"></div>
 </div>
 
 <!-- ── Nejhorší URL ───────────────────────────────────────── -->
@@ -225,11 +227,12 @@ $samples_24h  = (int) $wpdb->get_var(
     </div>
   </details>
 
-  <details style="margin-bottom:0;">
+  <details id="seob-cwv-fixes" style="margin-bottom:0;">
     <summary style="cursor:pointer;font-weight:600;font-size:14px;padding:8px 0;">&#9654; Jak opravit jednotlivé metriky (podrobný návod)</summary>
-    <div style="padding:12px 0 0 16px;line-height:1.7;color:#333;">
+    <p style="color:#888;font-size:12px;margin:4px 0 16px 0;">Kliknutím na "Jak opravit" v diagnostickém panelu výše se přeskrolujete přímo na konkrétní metriku.</p>
+    <div style="line-height:1.7;color:#333;">
 
-      <div style="background:#fff3cd;border-left:4px solid #e65100;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-cwv-fix-lcp" style="background:#fff3cd;border-left:4px solid #e65100;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; LCP &gt; 2,5 s – Largest Contentful Paint (nejčastější problém)</strong>
         <p style="margin:6px 0 4px;">Největší prvek stránky (obvykle hero obrázek nebo banner) se načítá pomalu. Uživatel čeká na prázdnou obrazovku.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit (od nejúčinnějšího):</strong></p>
@@ -243,7 +246,7 @@ $samples_24h  = (int) $wpdb->get_var(
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-cwv-fix-inp" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; INP &gt; 200 ms – Interaction to Next Paint</strong>
         <p style="margin:6px 0 4px;">Stránka pomalu reaguje na interakce uživatele (klik, stisk klávesy). Způsobuje to příliš mnoho nebo příliš těžký JavaScript.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -255,7 +258,7 @@ $samples_24h  = (int) $wpdb->get_var(
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-cwv-fix-cls" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; CLS &gt; 0,1 – Cumulative Layout Shift</strong>
         <p style="margin:6px 0 4px;">Stránka "poskakuje" při načítání – prvky se přesouvají, protože prohlížeč nezná jejich rozměry předem.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -268,7 +271,7 @@ $samples_24h  = (int) $wpdb->get_var(
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
+      <div id="seob-cwv-fix-fcp" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
         <strong>&#9888; FCP &gt; 1,8 s – First Contentful Paint</strong>
         <p style="margin:6px 0 4px;">Uživatel příliš dlouho čeká, než uvidí první obsah. Nejčastěji způsobeno pomalým serverem nebo blokujícími CSS/JS soubory v hlavičce.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
@@ -280,7 +283,7 @@ $samples_24h  = (int) $wpdb->get_var(
         </ol>
       </div>
 
-      <div style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:0;border-radius:0 4px 4px 0;">
+      <div id="seob-cwv-fix-ttfb" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:0;border-radius:0 4px 4px 0;">
         <strong>&#9888; TTFB &gt; 800 ms – Time to First Byte</strong>
         <p style="margin:6px 0 4px;">Server reaguje příliš pomalu – ještě než prohlížeč začne stahovat stránku, čeká na odpověď. Může být způsobeno pomalým hostingem nebo náročnými databázovými dotazy.</p>
         <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
