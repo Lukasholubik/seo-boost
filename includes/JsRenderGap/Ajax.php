@@ -149,7 +149,11 @@ class SEOB_JsGap_Ajax {
 
 		$processed = 0;
 		foreach ( $rows as $snap ) {
-			$result = SEOB_JsGap_Comparator::analyze( $snap );
+			try {
+				$result = SEOB_JsGap_Comparator::analyze( $snap );
+			} catch ( \Throwable $e ) {
+				$result = null; // Uložit placeholder – nesmí zrušit celou dávku
+			}
 
 			// Uložit i při null – prázdný placeholder zabrání nekonečné smyčce
 			// (URL by jinak zůstala v unanalyzed listu navždy)

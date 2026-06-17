@@ -7,6 +7,25 @@
 
 ## Záznamy
 
+### 2026-06-17 – v0.9.0 – bugfixy JS Render Gap + CWV agregace
+
+**Opravené chyby:**
+
+- **JS Render Gap: nekonečná rekurze na homepage** – `Comparator::get_raw_via_wp('/')` se rekurzivně volala samu sebe (při `url_to_postid()` → 0 + `page_on_front` nastaven). Oprava: detekce homepage přidána před `url_to_postid()`, pomocí `page_on_front` option přímou lookupem.
+- **JS Render Gap: UI zamrzlé na 40%** – jQuery `.fail()` handler (server error 500) nereset progress bar ani tlačítko. Oprava: přidáno `hideProgress()` + reset `scanRunning` do `.fail()`.
+- **JS Render Gap: jeden špatný snapshot zahodil celou dávku** – přidán `try/catch \Throwable` okolo `Comparator::analyze()` v `Ajax.php`. Při výjimce uloží se placeholder result.
+- **JS Render Gap: `get_the_excerpt()` spouštěl hooky třetích stran** – nahrazen `get_post_field('post_excerpt', $post_id)` pro bezpečný přístup bez filter hooků.
+- **CWV dashboard: prázdný graf po manuální agregaci** – `Aggregator::run()` agreguje pouze včerejší den. Přidána metoda `run_all_pending()` která najde všechny dny s raw daty (včetně dnešního) a agreguje je. `ajax_run_aggregation` nyní volá `run_all_pending()`.
+
+**Upravené soubory:**
+- `includes/JsRenderGap/Comparator.php` – fix rekurze, `get_the_excerpt` → `get_post_field`
+- `includes/JsRenderGap/Ajax.php` – try/catch v dávce
+- `assets/admin/js/js-render-gap.js` – fix `.fail()` handler
+- `includes/CWV/Aggregator.php` – refaktoring: `aggregate_day()` + `rotate()` metody; nová `run_all_pending()`
+- `includes/CWV/Ajax.php` – `ajax_run_aggregation` volá `run_all_pending()`
+
+---
+
 ### 2026-06-17 – v0.9.0 – M12: JS Render Gap detektor
 
 **Nové soubory:**

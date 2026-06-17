@@ -9,7 +9,15 @@
   function ajax(action, data, ok, fail) {
     $.post(seobData.ajaxUrl, Object.assign({ action: action, nonce: seobData.nonce }, data))
       .done(function (r) { r.success ? ok(r.data) : (fail || showError)(r.data); })
-      .fail(function () { showError({ message: 'Chyba spojení se serverem.' }); });
+      .fail(function () {
+        // Server error (500, timeout) – resetuj scan stav aby UI nezamrzlo
+        if (scanRunning) {
+          hideProgress();
+          $('#seob-jsgap-run-btn').prop('disabled', false).text('▶ Spustit analýzu');
+          scanRunning = false;
+        }
+        showError({ message: 'Chyba serveru – zkuste analýzu spustit znovu.' });
+      });
   }
 
   function showError(d) {

@@ -164,7 +164,7 @@ class SEOB_CWV_Ajax {
 		check_ajax_referer( 'seob_admin_nonce', 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) wp_die( '', 403 );
 
-		( new SEOB_CWV_Aggregator() )->run();
+		( new SEOB_CWV_Aggregator() )->run_all_pending();
 		wp_send_json_success( [ 'message' => 'Agregace dokončena. Grafy jsou aktuální.' ] );
 	}
 

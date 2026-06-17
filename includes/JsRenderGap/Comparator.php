@@ -42,6 +42,12 @@ class SEOB_JsGap_Comparator {
 		$url     = home_url( $path );
 		$post_id = url_to_postid( $url );
 
+		// url_to_postid() vrátí 0 pro homepage když je nastavena jako statická stránka –
+		// použij page_on_front přímo, aby nedošlo k rekurzivnímu volání
+		if ( $post_id === 0 && get_option( 'show_on_front' ) === 'page' && rtrim( $path, '/' ) === '' ) {
+			$post_id = (int) get_option( 'page_on_front' );
+		}
+
 		if ( $post_id > 0 ) {
 			$post = get_post( $post_id );
 			if ( ! $post || $post->post_status !== 'publish' ) return null;
@@ -62,14 +68,14 @@ class SEOB_JsGap_Comparator {
 			// H1: v standard WP tématech = titulek příspěvku
 			$raw_h1 = get_the_title( $post_id );
 
-			// Meta description: Rank Math post meta
+			// Meta description: Rank Math → Yoast → post_excerpt (bez filter hooků)
 			$raw_meta_desc = trim( get_post_meta( $post_id, 'rank_math_description', true ) ?: '' );
 			if ( $raw_meta_desc === '' ) {
-				// Fallback: excerpt
 				$raw_meta_desc = trim( get_post_meta( $post_id, '_yoast_wpseo_metadesc', true ) ?: '' );
 			}
 			if ( $raw_meta_desc === '' ) {
-				$raw_meta_desc = trim( get_the_excerpt( $post_id ) );
+				// get_post_field místo get_the_excerpt() – nespouští hooky třetích stran
+				$raw_meta_desc = trim( get_post_field( 'post_excerpt', $post_id ) );
 			}
 
 			// JSON-LD: Rank Math schema bloky
@@ -100,13 +106,7 @@ class SEOB_JsGap_Comparator {
 			];
 		}
 
-		// Homepage nebo archiv – zjednodušená data
-		$front_page_id = (int) get_option( 'page_on_front' );
-		if ( $front_page_id && ( $path === '/' || $path === '' || $path === home_url( '/' ) ) ) {
-			return self::get_raw_via_wp( get_permalink( $front_page_id ) ? str_replace( home_url(), '', get_permalink( $front_page_id ) ) : '/' );
-		}
-
-		// Neznamý typ URL – vrátíme základní data, gap score bude 0
+		// Archiv, vyhledávání apod. – základní fallback, gap score bude 0
 		return [
 			'title'         => get_bloginfo( 'name' ),
 			'h1s'           => [],
