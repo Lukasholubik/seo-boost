@@ -97,7 +97,7 @@ class SEOB_CWV_Ajax {
 		if ( ! current_user_can( 'manage_options' ) ) wp_die( '', 403 );
 
 		$metric = sanitize_key( $_POST['metric'] ?? 'LCP' );
-		$device = sanitize_key( $_POST['device'] ?? 'mobile' );
+		$device = sanitize_key( $_POST['device'] ?? '' );
 		$days   = min( 90, max( 7, (int) ( $_POST['days'] ?? 30 ) ) );
 		$limit  = min( 50, max( 5, (int) ( $_POST['limit'] ?? 20 ) ) );
 
@@ -105,15 +105,19 @@ class SEOB_CWV_Ajax {
 		$daily_table = SEOB_Database::cwv_daily_table();
 		$since = gmdate( 'Y-m-d', strtotime( "-{$days} days" ) );
 
+		// Pokud není zadáno zařízení, zobraz nejhorší URL přes všechna zařízení
+		$device_clause = $device ? $wpdb->prepare( 'AND device = %s', $device ) : '';
+
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT path, AVG(p75) AS avg_p75, SUM(sample_count) AS total_samples,
+				"SELECT path, MAX(p75) AS avg_p75, SUM(sample_count) AS total_samples,
 				        MAX(CASE WHEN p75 > %f THEN 'poor'
 				                 WHEN p75 > %f THEN 'needs-improvement'
 				                 ELSE 'good' END) AS rating
 				 FROM {$daily_table}
-				 WHERE metric = %s AND device = %s
+				 WHERE metric = %s
 				   AND day >= %s AND url_hash != '*'
+				   {$device_clause}
 				 GROUP BY url_hash, path
 				 HAVING total_samples >= 1
 				 ORDER BY avg_p75 DESC
@@ -121,7 +125,6 @@ class SEOB_CWV_Ajax {
 				self::poor_threshold( $metric ),
 				self::ni_threshold( $metric ),
 				$metric,
-				$device,
 				$since,
 				$limit
 			)

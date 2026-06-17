@@ -147,7 +147,7 @@
 
     ajax('seob_cwv_worst_urls', {
       metric: currentMetric,
-      device: currentDevice || 'mobile',
+      device: currentDevice,
       days:   currentDays,
       limit:  20,
     }, function (d) {
