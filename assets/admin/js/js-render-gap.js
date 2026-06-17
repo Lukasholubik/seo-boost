@@ -158,7 +158,7 @@
     'h1_mismatch':              { anchor: 'seob-fix-h1_mismatch',              label: 'H1 nesouhlasí' },
     'title_mismatch':           { anchor: 'seob-fix-title_mismatch',           label: 'Title nesouhlasí' },
     'meta_desc_missing_in_raw': { anchor: 'seob-fix-meta_desc_missing_in_raw', label: 'Meta popis chybí' },
-    'json_ld_gap':              { anchor: 'seob-fix-json_ld_gap',              label: 'JSON-LD chybí' },
+    'json_ld_gap':              { anchor: 'seob-fix-json_ld_gap',              label: 'Extra JSON-LD (JS?)' },
     'text_ratio_critical':      { anchor: 'seob-fix-text_ratio',               label: 'Málo textu (kritické)' },
     'text_ratio_warning':       { anchor: 'seob-fix-text_ratio',               label: 'Méně textu v raw HTML' },
   };

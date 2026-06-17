@@ -203,13 +203,23 @@ $last_analyzed = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" 
       </div>
 
       <div id="seob-fix-json_ld_gap" style="background:#fff3cd;border-left:4px solid #f59e0b;padding:10px 14px;margin-bottom:16px;border-radius:0 4px 4px 0;">
-        <strong>&#9888; Strukturovaná data (JSON-LD) chybí v raw HTML</strong> <span style="color:#888;font-size:12px;">(Gap score +20)</span>
-        <p style="margin:6px 0 4px;">Vaše schémata (Article, Product, FAQ, Review...) jsou vkládána JavaScriptem. Google je nemusí vidět → žádné rich snippety ve výsledcích.</p>
-        <p style="margin:4px 0 2px;"><strong>Jak opravit:</strong></p>
+        <strong>&#9888; Strukturovaná data (JSON-LD) – rozdíl mezi raw HTML a rendered DOM</strong> <span style="color:#888;font-size:12px;">(Gap score +20)</span>
+        <p style="margin:6px 0 4px;">Beacon nalezl více <code>&lt;script type="application/ld+json"&gt;</code> tagů v rendered DOM než v raw HTML. Existují dva scénáře:</p>
+        <ul style="margin:4px 0 4px 18px;">
+          <li><strong>Kritické (raw = 0):</strong> JSON-LD zcela chybí v raw HTML – je vkládáno výhradně JavaScriptem. Google strukturovaná data nemusí vidět.</li>
+          <li><strong>Varování (raw ≥ 1):</strong> Rank Math nebo Yoast SEO vkládá JSON-LD staticky – to je správně. Extra blok(y) v rendered DOM přidal JavaScript (Elementor widget, GTM, jiný plugin). Google tyto extra bloky nemusí vidět.</li>
+        </ul>
+        <p style="margin:4px 0 2px;"><strong>Jak zjistit původ extra JSON-LD:</strong></p>
         <ol style="margin:4px 0 0 18px;">
-          <li><strong>Rank Math:</strong> JSON-LD vkládá staticky do <code>&lt;head&gt;</code> přes PHP hook <code>wp_head</code> – pokud toto používáte, zkontrolujte, zda máte plugin aktualizovaný a schéma správně nakonfigurované.</li>
-          <li><strong>Vlastní JSON-LD kód:</strong> Přesuňte <code>&lt;script type="application/ld+json"&gt;</code> z JavaScript souborů do PHP šablony (použijte <code>wp_head</code> akci).</li>
-          <li><strong>Ověření:</strong> Ve zdrojovém kódu stránky hledejte <code>application/ld+json</code>. Pokud tam není, schéma nepochází ze serveru.</li>
+          <li>Otevřete stránku v Chrome → <strong>Ctrl+U</strong> (View Source) → spočítejte výskyty <code>application/ld+json</code>. Každý výskyt zde je statický (v pořádku).</li>
+          <li>V <strong>DevTools → Console</strong> spusťte: <code>document.querySelectorAll('script[type="application/ld+json"]').length</code>. Pokud je číslo vyšší než ve View Source, rozdíl přidal JavaScript.</li>
+          <li>Zkontrolujte <strong>Elementor</strong> widgety pro Schema / Structured Data nebo pluginy jako <em>Schema Pro</em>, <em>WPSSO</em>.</li>
+          <li>Prohledejte GTM tagy – Google Tag Manager může injektovat JSON-LD přes vlastní skripty.</li>
+        </ol>
+        <p style="margin:8px 0 2px;"><strong>Pokud je raw = 0 (JSON-LD zcela chybí):</strong></p>
+        <ol style="margin:4px 0 0 18px;">
+          <li>Nainstalujte a nakonfigurujte <strong>Rank Math</strong> nebo <strong>Yoast SEO</strong> – vkládají JSON-LD staticky přes <code>wp_head</code>.</li>
+          <li>Vlastní JSON-LD přesuňte z JS souborů do PHP šablony pomocí <code>add_action('wp_head', ...)</code>.</li>
         </ol>
       </div>
 

@@ -78,14 +78,19 @@ class SEOB_JsGap_Comparator {
 				$raw_meta_desc = trim( get_post_field( 'post_excerpt', $post_id ) );
 			}
 
-			// JSON-LD: Rank Math schema bloky
+			// JSON-LD: počítáme <script> TAGY (ne schema objekty uvnitř).
+			// Rank Math vždy outputuje JEDEN <script type="application/ld+json"> tag
+			// s @graph bez ohledu na to, kolik schema objektů je uloženo v DB.
+			// Porovnávat count(get_schemas()) vs beacon tag count jsou různé jednotky → false positives.
 			$raw_json_ld = 0;
 			if ( class_exists( '\RankMath\Schema\DB' ) ) {
-				$schemas     = \RankMath\Schema\DB::get_schemas( $post_id );
-				$raw_json_ld = is_array( $schemas ) ? count( $schemas ) : 0;
+				$schemas = \RankMath\Schema\DB::get_schemas( $post_id );
+				if ( is_array( $schemas ) && ! empty( $schemas ) ) {
+					$raw_json_ld = 1; // Rank Math = vždy 1 script tag (@graph)
+				}
 			}
 			if ( $raw_json_ld === 0 && class_exists( 'RankMath' ) ) {
-				// Rank Math vždy generuje alespoň WebPage schema pro každou stránku
+				// Rank Math generuje globální schémata (WebSite, WebPage) na každé stránce
 				$raw_json_ld = 1;
 			}
 
@@ -213,17 +218,35 @@ class SEOB_JsGap_Comparator {
 			];
 		}
 
-		// JSON-LD gap
+		// JSON-LD gap: rendered má více <script> tagů než raw HTML.
+		// raw_jsonld = 0 → JSON-LD úplně chybí (kritické).
+		// raw_jsonld > 0 → Rank Math/Yoast funguje, extra blok(y) přidány JavaScriptem.
 		$rendered_jsonld = (int) ( $snap['json_ld_count'] ?? 0 );
 		$raw_jsonld      = (int) $raw['json_ld_count'];
 		if ( $rendered_jsonld > $raw_jsonld && $rendered_jsonld > 0 ) {
-			$diff = $rendered_jsonld - $raw_jsonld;
+			$diff     = $rendered_jsonld - $raw_jsonld;
+			$severity = $raw_jsonld === 0 ? 'critical' : 'warning';
+			if ( $raw_jsonld === 0 ) {
+				$msg = sprintf(
+					'JSON-LD zcela chybí v raw HTML, ale beacon nalezl %d blok(ů) v rendered DOM – strukturovaná data jsou vkládána JavaScriptem a Google je nemusí vidět.',
+					$rendered_jsonld
+				);
+			} else {
+				$msg = sprintf(
+					'Beacon nalezl %d JSON-LD bloků v rendered DOM, ale v raw HTML jen %d. ' .
+					'Rank Math / Yoast SEO vkládá JSON-LD staticky (správně). ' .
+					'Extra %s byl pravděpodobně přidán JavaScriptem (Elementor Schema widget, GTM nebo jiný plugin) – Google ho nemusí vidět.',
+					$rendered_jsonld,
+					$raw_jsonld,
+					$diff === 1 ? '1 blok' : "{$diff} bloky"
+				);
+			}
 			$issues[] = [
 				'type'     => 'json_ld_gap',
-				'severity' => $diff >= $rendered_jsonld ? 'critical' : 'warning',
+				'severity' => $severity,
 				'rendered' => $rendered_jsonld,
 				'raw'      => $raw_jsonld,
-				'message'  => sprintf( '%d JSON-LD blok(ů) přítomno v rendered DOM, ale jen %d v raw HTML – strukturovaná data chybí pro crawlery bez JS.', $rendered_jsonld, $raw_jsonld ),
+				'message'  => $msg,
 			];
 		}
 
