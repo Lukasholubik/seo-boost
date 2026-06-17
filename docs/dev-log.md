@@ -7,6 +7,32 @@
 
 ## Záznamy
 
+### 2026-06-17 – v0.9.0 – M9: HTTP Hlavičky & Bezpečnost
+
+**Nový modul `http-headers` (výchozí: vypnuto).** Skenuje HTTP odpovědi stránek webu přes `wp_remote_head()`.
+
+**Co se kontroluje:**
+- `x-robots-tag: noindex` v HTTP hlavičce → kritické (blokuje Google)
+- Chybějící HTTPS → kritické
+- HTTP status chyby 4xx/5xx → kritické
+- Chybějící HSTS, X-Content-Type-Options, X-Frame-Options → varování
+- Chybějící Referrer-Policy, Cache-Control → info
+
+**Architektura** (identický vzor jako JSON-LD Validátor):
+- `Checker.php` – HEAD request + analýza hlaviček, score 0–100
+- `ScanRunner.php` – WP-Cron dávky 1 URL/3s, archiv posledních 10 skenů, metriky
+- `Ajax.php` – 6 AJAX endpointů včetně rychlé kontroly jedné URL
+- `page-http-headers.php` – progress bar, summary karty, filtr, tabulka, rychlá kontrola URL, dokumentace s návody
+- `http-headers.js` – polling, render tabulky, proklik na dokumentaci
+- Health check v `HealthChecks.php` – warning bez skenu, critical při x-robots-tag/no-HTTPS
+- `ModuleManager.php`, `Admin.php`, `seo-boost.php` – registrace modulu
+
+**`php -l` OK** na všech nových/upravených souborech. **Neotestováno v prohlížeči.**
+
+**Commit:** `0656337`
+
+---
+
 ### 2026-06-17 – v0.9.0 – oprava false positive json_ld_gap
 
 **Problém:**
