@@ -150,19 +150,32 @@ class SEOB_JsGap_Ajax {
 		$processed = 0;
 		foreach ( $rows as $snap ) {
 			$result = SEOB_JsGap_Comparator::analyze( $snap );
-			if ( null === $result ) continue;
 
-			$wpdb->replace( $result_table, array_merge( [
-				'url_hash'               => $snap['url_hash'],
-				'path'                   => $snap['path'],
-				'rendered_title'         => $snap['title'],
-				'rendered_h1'            => $snap['h1'],
-				'rendered_meta_desc'     => $snap['meta_desc'],
-				'rendered_json_ld_count' => (int) $snap['json_ld_count'],
-				'rendered_text_len'      => (int) $snap['text_len'],
-				'rendered_links_count'   => (int) $snap['links_count'],
-				'analyzed_at'            => current_time( 'mysql', true ),
-			], $result ) );
+			// Uložit i při null – prázdný placeholder zabrání nekonečné smyčce
+			// (URL by jinak zůstala v unanalyzed listu navždy)
+			$wpdb->replace( $result_table, array_merge(
+				[
+					'url_hash'               => $snap['url_hash'],
+					'path'                   => $snap['path'],
+					'rendered_title'         => $snap['title'] ?? '',
+					'rendered_h1'            => $snap['h1'] ?? '',
+					'rendered_meta_desc'     => $snap['meta_desc'] ?? '',
+					'rendered_json_ld_count' => (int) ( $snap['json_ld_count'] ?? 0 ),
+					'rendered_text_len'      => (int) ( $snap['text_len'] ?? 0 ),
+					'rendered_links_count'   => (int) ( $snap['links_count'] ?? 0 ),
+					'analyzed_at'            => current_time( 'mysql', true ),
+				],
+				$result ?? [
+					'gap_score'   => 0,
+					'issues_json' => '[]',
+					'raw_title'   => '',
+					'raw_h1'      => '',
+					'raw_meta_desc'     => '',
+					'raw_json_ld_count' => 0,
+					'raw_text_len'      => 0,
+					'raw_links_count'   => 0,
+				]
+			) );
 			$processed++;
 		}
 
