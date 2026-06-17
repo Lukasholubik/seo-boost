@@ -56,7 +56,8 @@
 
       if (chart) { chart.destroy(); chart = null; }
 
-      var t = THRESHOLDS[d.metric] || {};
+      // sanitize_key() na serveru vrátí lowercase ('ttfb') – normalizuj na uppercase
+      var t = THRESHOLDS[(d.metric || currentMetric).toUpperCase()] || {};
 
       // Datové body
       var datasets = [];
@@ -157,7 +158,7 @@
       }
       var html = '';
       d.urls.forEach(function (u, i) {
-        var color = ratingColor(u.p75, d.metric);
+        var color = ratingColor(u.p75, d.metric.toUpperCase());
         var badge = '<span style="background:' + color + ';color:#fff;padding:2px 7px;border-radius:3px;font-size:11px;">' + (u.rating || '') + '</span>';
         html += '<tr><td>' + (i + 1) + '</td><td><a href="' + encodeURI(location.origin + u.path) + '" target="_blank" rel="noopener">' + escHtml(u.path) + '</a></td>' +
           '<td style="font-weight:600;color:' + color + ';">' + formatValue(u.p75, d.metric) + '</td>' +

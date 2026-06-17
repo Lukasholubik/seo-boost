@@ -265,7 +265,7 @@ class SEOB_Admin {
 				'seob-cwv-dashboard',
 				SEOB_PLUGIN_URL . 'assets/admin/js/cwv-dashboard.js',
 				[ 'chartjs' ],
-				SEOB_VERSION . '-3',
+				SEOB_VERSION . '-4',
 				true
 			);
 			wp_localize_script( 'seob-cwv-dashboard', 'seobData', $shared_data );
