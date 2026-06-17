@@ -7,6 +7,105 @@
 
 ## Záznamy
 
+### 2026-06-17 – v0.9.0 – M12: JS Render Gap detektor
+
+**Nové soubory:**
+- `includes/JsRenderGap/BeaconReceiver.php` – REST `POST /wp-json/seo-booster/v1/js-gap`; přijímá rendered DOM snapshot z JS beaconu; rate limit 1×/24h per URL per IP hash (WP transient); REPLACE do `seo_booster_js_gap_snapshots`
+- `includes/JsRenderGap/Comparator.php` – stáhne raw HTML přes `wp_remote_get` (sslverify=false, 8s timeout); parsuje `DOMDocument + DOMXPath`; porovnává title/H1/meta desc/JSON-LD count/text ratio; gap score 0–100
+- `includes/JsRenderGap/ScanRunner.php` – cron hook `seob_js_gap_scan` (pondělí 03:30 UTC, schedule `weekly`); batch 10 URL; on-demand `analyze_one(url_hash)`; `record_metrics()` → `pages_with_gap` + `avg_gap_score`
+- `includes/JsRenderGap/Ajax.php` – 4 AJAX: `seob_jsgap_stats`, `seob_jsgap_results`, `seob_jsgap_analyze_one`, `seob_jsgap_run_scan`
+- `assets/js/js-render-gap-beacon.js` – < 1.5 kB; zachytí DOM 800ms po DOMContentLoaded; localStorage rate limit 7 dní per URL; odesílá: path, title, h1[], headings[], meta_desc, json_ld_count, text_len, links_count
+- `templates/admin/page-js-render-gap.php` – stat boxy, filtr (kritické/varování/ok), výsledková tabulka, legenda skóre
+- `assets/admin/js/js-render-gap.js` – jQuery: loadStats, run scan, filter, výsledky + inline "Znovu" analýza, stránkování
+- `docs/modules/js-render-gap.md` – full spec dokumentace
+
+**Upravené soubory:**
+- `includes/Database/Database.php` – přidány `js_gap_snapshots_table()`, `js_gap_results_table()`
+- `includes/Activator.php` – CREATE TABLE `seo_booster_js_gap_snapshots` (url_hash PK) + `seo_booster_js_gap_results` (url_hash PK, rendered_*/raw_* sloupce, gap_score, issues_json)
+- `includes/ModuleManager.php` – přidán `js-render-gap`; odstraněn `image-seo` (uživatel odmítl)
+- `includes/Settings.php` – konstanta `JS_RENDER_GAP` + defaults; `js-render-gap` v modulech (default off)
+- `includes/Admin/Admin.php` – submenu "JS Render Gap", `page_js_render_gap()`, enqueue `js-render-gap.js`
+- `includes/Plugin.php` – frontend beacon enqueue + `wp_rest` nonce + `seob_js_gap_scan` action + `SEOB_JsGap_ScanRunner::schedule()`
+- `seo-boost.php` – 4 JsRenderGap soubory v autoloaderu; verze `0.8.0 → 0.9.0`
+
+**Architektura:**
+1. Frontend beacon → `navigator.sendBeacon` → REST endpoint → DB snapshot
+2. Cron/Admin → batch/on-demand `Comparator::analyze()` → `wp_remote_get` → DOMDocument → gap score → DB results
+3. Dashboard → AJAX → výsledky + filtry
+
+**Pozor na:**
+- `weekly` WP cron schedule – WP nemá tento interval nativně, nutno registrovat přes `cron_schedules` filter. Přidat do Plugin.php pokud chybí (TODO).
+- Beacon posílá `wp_rest` nonce (veřejný endpoint, žádný `manage_options`)
+- `SEOB_DB_VERSION` bumped na `0.9.0` → nové tabulky se vytvoří při prvním načtení
+
+---
+
+### 2026-06-16 (update 17) – M4: Core Web Vitals RUM monitoring
+
+**Nové soubory:**
+- `includes/CWV/BeaconEndpoint.php` – REST endpoint `POST /wp-json/seo-booster/v1/cwv` pro příjem metrik
+- `includes/CWV/Aggregator.php` – WP-Cron `seob_cwv_aggregate` (denně 03:00 UTC), p75 per path/metric/device, rotace dat
+- `includes/CWV/Ajax.php` – admin AJAX: `seob_cwv_dashboard` (graf), `seob_cwv_worst_urls` (tabulka), `seob_cwv_save_settings`
+- `assets/js/vendor/web-vitals.iife.min.js` – web-vitals v4 IIFE build (7.5 kB, lokálně)
+- `assets/js/cwv-beacon.js` – frontend wrapper (~1 kB): posílá LCP/INP/CLS/FCP/TTFB na REST endpoint
+- `assets/admin/js/cwv-dashboard.js` – admin dashboard JS (Chart.js line chart + tabulka worst URLs)
+- `templates/admin/page-cwv.php` – admin stránka "Core Web Vitals (RUM)"
+
+**Upravené soubory:**
+- `includes/Database/Database.php` – přidány `cwv_raw_table()`, `cwv_daily_table()`
+- `includes/Activator.php` – CREATE TABLE pro `cwv_raw` a `cwv_daily`, unschedule CWV cronu
+- `includes/ModuleManager.php` – přidán modul `cwv-rum`
+- `includes/Settings.php` – přidána konstanta `CWV`, defaults `raw_retention_days=90`, `daily_retention_days=365`
+- `includes/Admin/Admin.php` – menu "CWV / RUM", page_cwv(), enqueue Chart.js + cwv-dashboard.js
+- `includes/Plugin.php` – frontend beacon enqueue + `SEOB_CWV_Aggregator::schedule()` při aktivním modulu
+- `seo-boost.php` – přidány 3 CWV soubory do autoloaderu
+
+**DB tabulky:**
+- `{prefix}seo_booster_cwv_raw` – surové beacony (url_hash, path, metric, value, rating, device, lcp_element, recorded_at)
+- `{prefix}seo_booster_cwv_daily` – denní p75 agregáty (day, url_hash, path, metric, device, p75, sample_count) + UNIQUE uq_day_hash_metric_device
+
+**Co měří:**
+- LCP (Largest Contentful Paint) – cíl < 2500 ms
+- INP (Interaction to Next Paint) – cíl < 200 ms
+- CLS (Cumulative Layout Shift) – cíl < 0.1
+- FCP (First Contentful Paint) – cíl < 1800 ms
+- TTFB (Time to First Byte) – cíl < 800 ms
+- Pro LCP navíc: CSS selektor LCP elementu (tagName + id + třídy) → přímá dohledatelnost viníka
+
+**Jak to funguje:**
+1. Frontend: `web-vitals.iife.min.js` → `cwv-beacon.js` → `navigator.sendBeacon` → REST `/cwv`
+2. REST: validace (metric enum, value range, path sanitize) + rate limit (30 req/min per IP hash) → INSERT do `cwv_raw`
+3. Cron (denně 03:00): agreguje předchozí den do `cwv_daily` (p75 per path + global '*') + rotace (90d raw, 365d daily)
+4. Admin dashboard: graf p75 trendu (Chart.js, filtry: metrika/zařízení/období), tabulka worst URLs
+
+**Bezpečnost a GDPR:**
+- Žádné PII: path = pouze pathname (bez query params), IP hash (ne raw IP)
+- Žádné cookies, žádná autentizace pro beacon endpoint
+- Rate limit na IP hash (30/min) → DoS ochrana
+
+**Jak aktivovat:**
+- Nastavení → Moduly → zapnout "Core Web Vitals (RUM)"
+- Po první návštěvě frontendu se data začnou sbírat
+- Cron agreguje denně – první agregovaná data jsou dostupná den po aktivaci
+
+**Co dělat pokud nejsou data:**
+1. Zkontroluj "Stav modulu" → "Vzorky za posledních 24h"
+2. Pokud 0: zkontroluj zda beacon není blokovaný consent nástrojem / cookie pluginem / cache
+3. Zkontroluj Network tab v DevTools – hledej POST na `/wp-json/seo-booster/v1/cwv`
+
+**Kde je co v kódu:**
+- Rate limit: `BeaconEndpoint::handle()` – transient `seob_cwv_rl_{ip_hash}`, okno 60s
+- p75 výpočet: `Aggregator::percentile_75()` – sort + ceil(0.75*n)-1 index
+- Worst URLs SQL: `Ajax::ajax_worst_urls()` – GROUP BY url_hash, HAVING total_samples >= 3
+- Frontend init: `Plugin.php::init()` → `wp_enqueue_scripts` → `seob-cwv-beacon`
+
+**Pozor na:**
+- SEOB_DB_VERSION musí být bumped před deploymentem na produkci (aby se spustilo `maybe_upgrade()` a vytvořily se CWV tabulky)
+- Chart.js annotation plugin (prahové linie) – NEdodán, použité native `annotation` klíče budou ignorovány bez registrovaného pluginu (linie se nevykreslí, ale chart funguje správně)
+- web-vitals `onINP` existuje od v3; `onFID` je deprecated a odstraněno
+
+---
+
 ### 2026-06-16 (update 16) – STAV: čekající body M3 (neověřeno)
 
 **Kde jsme skončili:**

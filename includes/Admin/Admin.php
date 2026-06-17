@@ -73,6 +73,18 @@ class SEOB_Admin {
 			add_submenu_page( self::MENU_SLUG, 'Local SEO (CZ)', 'Local SEO (CZ)', self::CAPABILITY, 'seob-local-seo', [ $this, 'page_local_seo' ] );
 		}
 
+		if ( SEOB_Module_Manager::is_active( 'json-ld' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'JSON-LD Validátor', 'JSON-LD Validátor', self::CAPABILITY, 'seob-json-ld', [ $this, 'page_json_ld' ] );
+		}
+
+		if ( SEOB_Module_Manager::is_active( 'cwv-rum' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'Core Web Vitals (RUM)', 'CWV / RUM', self::CAPABILITY, 'seob-cwv', [ $this, 'page_cwv' ] );
+		}
+
+		if ( SEOB_Module_Manager::is_active( 'js-render-gap' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'JS Render Gap', 'JS Render Gap', self::CAPABILITY, 'seob-js-render-gap', [ $this, 'page_js_render_gap' ] );
+		}
+
 		// Stav systému a Nastavení zůstávají vždy dostupné – odsud se moduly znovu zapínají.
 		add_submenu_page( self::MENU_SLUG, 'Stav systému', 'Stav systému', self::CAPABILITY, 'seob-status',   [ $this, 'page_status' ] );
 		add_submenu_page( self::MENU_SLUG, 'Nastavení',    'Nastavení',    self::CAPABILITY, 'seob-settings', [ $this, 'page_settings' ] );
@@ -214,6 +226,53 @@ class SEOB_Admin {
 			return;
 		}
 
+		if ( str_ends_with( $hook, '_page_seob-json-ld' ) ) {
+			wp_enqueue_script(
+				'seob-json-ld',
+				SEOB_PLUGIN_URL . 'assets/admin/js/json-ld.js',
+				[],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-json-ld', 'seobData', $shared_data );
+
+			return;
+		}
+
+		if ( str_ends_with( $hook, '_page_seob-js-render-gap' ) ) {
+			wp_enqueue_script(
+				'seob-js-render-gap',
+				SEOB_PLUGIN_URL . 'assets/admin/js/js-render-gap.js',
+				[ 'jquery' ],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-js-render-gap', 'seobData', $shared_data );
+
+			return;
+		}
+
+		if ( str_ends_with( $hook, '_page_seob-cwv' ) ) {
+			// Chart.js pro CWV dashboard
+			wp_enqueue_script(
+				'chartjs',
+				'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+				[],
+				'4.4.0',
+				true
+			);
+			wp_enqueue_script(
+				'seob-cwv-dashboard',
+				SEOB_PLUGIN_URL . 'assets/admin/js/cwv-dashboard.js',
+				[ 'chartjs' ],
+				SEOB_VERSION,
+				true
+			);
+			wp_localize_script( 'seob-cwv-dashboard', 'seobData', $shared_data );
+
+			return;
+		}
+
 		if ( str_ends_with( $hook, '_page_seob-redirects' ) ) {
 			wp_enqueue_script(
 				'seob-redirects',
@@ -283,6 +342,8 @@ class SEOB_Admin {
 						'reportUrl'      => admin_url( 'admin.php?page=seob-report' ),
 						'aiQueueActive'  => SEOB_Module_Manager::is_active( 'ai-queue' ),
 						'aiQueueUrl'     => admin_url( 'admin.php?page=seob-ai-queue' ),
+						'jsonLdActive'   => SEOB_Module_Manager::is_active( 'json-ld' ),
+						'jsonLdUrl'      => admin_url( 'admin.php?page=seob-json-ld' ),
 						'postTypeLabels' => self::get_audit_post_type_labels(),
 					]
 				)
@@ -394,6 +455,15 @@ class SEOB_Admin {
 		$this->render_template( 'page-local-seo.php' );
 	}
 
+	public function page_json_ld(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'json-ld' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['json-ld']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-json-ld.php' );
+	}
+
 	public function page_pdf_settings(): void {
 		if ( ! SEOB_Module_Manager::is_active( 'pdf' ) ) {
 			$this->render_disabled_module( SEOB_Module_Manager::MODULES['pdf']['label'] );
@@ -401,6 +471,24 @@ class SEOB_Admin {
 		}
 
 		$this->render_template( 'page-pdf-settings.php' );
+	}
+
+	public function page_cwv(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'cwv-rum' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['cwv-rum']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-cwv.php' );
+	}
+
+	public function page_js_render_gap(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'js-render-gap' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['js-render-gap']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-js-render-gap.php' );
 	}
 
 	private function render_disabled_module( string $module_label ): void {

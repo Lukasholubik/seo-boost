@@ -70,6 +70,24 @@ class SEOB_Module_Manager {
 			'classes'     => [ 'SEOB_LocalSeo_Ajax', 'SEOB_LocalSeo_Frontend' ],
 			'depends_on'  => [],
 		],
+		'json-ld' => [
+			'label'       => 'JSON-LD Validátor',
+			'description' => 'Extrahuje strukturovaná data z renderovaných stránek, validuje je vůči schema.org a detekuje duplicitní schémata, která mohou potlačit rich snippety.',
+			'classes'     => [ 'SEOB_JsonLd_ScanRunner', 'SEOB_JsonLd_Ajax' ],
+			'depends_on'  => [],
+		],
+		'cwv-rum' => [
+			'label'       => 'Core Web Vitals (RUM)',
+			'description' => 'Měří LCP, INP, CLS, FCP, TTFB od reálných uživatelů. Anonymní beacon (bez cookies), denní p75 agregace, graf trendu a tabulka nejhorších URL.',
+			'classes'     => [ 'SEOB_CWV_BeaconEndpoint', 'SEOB_CWV_Aggregator', 'SEOB_CWV_Ajax' ],
+			'depends_on'  => [],
+		],
+		'js-render-gap' => [
+			'label'       => 'JS Render Gap',
+			'description' => 'Detekuje obsah skrytý Googlu bez JS renderování. Porovnává raw HTML (jak ho crawluje Google) s DOM zachycenym od reálných návštěvníků.',
+			'classes'     => [ 'SEOB_JsGap_BeaconReceiver', 'SEOB_JsGap_ScanRunner', 'SEOB_JsGap_Ajax' ],
+			'depends_on'  => [],
+		],
 	];
 
 	/**

@@ -34,6 +34,8 @@ class SEOB_Activator {
 		// Tabulky a nastavení zůstávají – mažou se až v uninstall.php (pokud je delete_on_uninstall zapnuto).
 		wp_clear_scheduled_hook( SEOB_Redirect_Manager::CRON_HOOK );
 		wp_clear_scheduled_hook( SEOB_PageSpeed_ScanRunner::CRON_HOOK );
+		wp_clear_scheduled_hook( SEOB_CWV_Aggregator::CRON_HOOK );
+		wp_clear_scheduled_hook( SEOB_JsGap_ScanRunner::CRON_HOOK );
 	}
 
 	private static function create_tables(): void {
@@ -57,6 +59,12 @@ class SEOB_Activator {
 		$internal_links_table   = SEOB_Database::internal_links_table();
 		$link_suggestions_table = SEOB_Database::link_suggestions_table();
 		$link_scans_table       = SEOB_Database::link_scans_table();
+		$hreflang_groups_table  = SEOB_Database::hreflang_groups_table();
+		$hreflang_members_table = SEOB_Database::hreflang_members_table();
+		$cwv_raw_table            = SEOB_Database::cwv_raw_table();
+		$cwv_daily_table          = SEOB_Database::cwv_daily_table();
+		$js_gap_snapshots_table   = SEOB_Database::js_gap_snapshots_table();
+		$js_gap_results_table     = SEOB_Database::js_gap_results_table();
 
 		$sql = "CREATE TABLE {$audit_table} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -245,6 +253,89 @@ class SEOB_Activator {
 			posts_done INT UNSIGNED DEFAULT 0,
 			status VARCHAR(10) NOT NULL DEFAULT 'running',
 			PRIMARY KEY  (id)
+		) {$charset_collate};
+
+		CREATE TABLE {$hreflang_groups_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			name VARCHAR(255) NOT NULL,
+			created_at DATETIME NOT NULL,
+			PRIMARY KEY  (id)
+		) {$charset_collate};
+
+		CREATE TABLE {$hreflang_members_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			group_id BIGINT UNSIGNED NOT NULL,
+			page_id BIGINT UNSIGNED NOT NULL,
+			locale VARCHAR(20) NOT NULL,
+			is_x_default TINYINT(1) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY idx_group (group_id),
+			KEY idx_page (page_id)
+		) {$charset_collate};
+
+		CREATE TABLE {$cwv_raw_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			url_hash CHAR(32) NOT NULL,
+			path VARCHAR(500) NOT NULL,
+			metric VARCHAR(10) NOT NULL,
+			value DOUBLE NOT NULL,
+			rating VARCHAR(20) NOT NULL,
+			device VARCHAR(10) NOT NULL DEFAULT 'desktop',
+			lcp_element VARCHAR(300) DEFAULT NULL,
+			recorded_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY idx_metric_device_date (metric, device, recorded_at),
+			KEY idx_url_hash (url_hash)
+		) {$charset_collate};
+
+		CREATE TABLE {$cwv_daily_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			day DATE NOT NULL,
+			url_hash CHAR(32) NOT NULL,
+			path VARCHAR(500) NOT NULL,
+			metric VARCHAR(10) NOT NULL,
+			device VARCHAR(10) NOT NULL,
+			p75 DOUBLE NOT NULL,
+			sample_count INT UNSIGNED NOT NULL DEFAULT 1,
+			PRIMARY KEY  (id),
+			UNIQUE KEY uq_day_hash_metric_device (day, url_hash, metric, device),
+			KEY idx_metric_device_day (metric, device, day)
+		) {$charset_collate};
+
+		CREATE TABLE {$js_gap_snapshots_table} (
+			url_hash CHAR(32) NOT NULL,
+			path VARCHAR(500) NOT NULL,
+			title VARCHAR(200) NOT NULL DEFAULT '',
+			h1 VARCHAR(300) NOT NULL DEFAULT '',
+			headings_json LONGTEXT,
+			meta_desc VARCHAR(300) NOT NULL DEFAULT '',
+			json_ld_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			text_len INT UNSIGNED NOT NULL DEFAULT 0,
+			links_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			received_at DATETIME NOT NULL,
+			PRIMARY KEY  (url_hash)
+		) {$charset_collate};
+
+		CREATE TABLE {$js_gap_results_table} (
+			url_hash CHAR(32) NOT NULL,
+			path VARCHAR(500) NOT NULL,
+			gap_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			issues_json LONGTEXT,
+			rendered_title VARCHAR(200) NOT NULL DEFAULT '',
+			rendered_h1 VARCHAR(300) NOT NULL DEFAULT '',
+			rendered_meta_desc VARCHAR(300) NOT NULL DEFAULT '',
+			rendered_json_ld_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			rendered_text_len INT UNSIGNED NOT NULL DEFAULT 0,
+			rendered_links_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			raw_title VARCHAR(200) NOT NULL DEFAULT '',
+			raw_h1 VARCHAR(300) NOT NULL DEFAULT '',
+			raw_meta_desc VARCHAR(300) NOT NULL DEFAULT '',
+			raw_json_ld_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			raw_text_len INT UNSIGNED NOT NULL DEFAULT 0,
+			raw_links_count SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+			analyzed_at DATETIME DEFAULT NULL,
+			PRIMARY KEY  (url_hash),
+			KEY idx_gap_score (gap_score)
 		) {$charset_collate};";
 
 		dbDelta( $sql );

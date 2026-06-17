@@ -18,6 +18,8 @@ class SEOB_Settings {
 	const PAGESPEED      = 'seob_pagespeed_settings';
 	const LOCAL_SEO      = 'seob_local_seo_settings';
 	const JSON_LD        = 'seob_json_ld_settings';
+	const CWV            = 'seob_cwv_settings';
+	const JS_RENDER_GAP  = 'seob_js_render_gap_settings';
 
 	/**
 	 * Výchozí hodnoty pro jednotlivé option klíče.
@@ -40,6 +42,8 @@ class SEOB_Settings {
 					'hreflang'       => 0,
 					'local-seo'      => 0,
 					'json-ld'        => 0,
+					'cwv-rum'        => 0,
+					'js-render-gap'  => 0,
 					],
 				];
 
@@ -118,6 +122,18 @@ class SEOB_Settings {
 					'completeness_threshold' => 60,
 					'max_depth'              => 2,
 					'blacklist_params'       => 'sort, order, orderby, open_now, rating, verified, has_phone, has_website, accepts_requests, price_level, distance, radius, map_bounds, lat, lng, page_size, view, utm_source, utm_medium, utm_campaign, utm_term, utm_content, fbclid, gclid, sessionid',
+				];
+
+			case self::CWV:
+				return [
+					'raw_retention_days'   => 90,
+					'daily_retention_days' => 365,
+				];
+
+			case self::JS_RENDER_GAP:
+				return [
+					'enabled'         => 1,
+					'gap_alert_score' => 50,
 				];
 
 			default:

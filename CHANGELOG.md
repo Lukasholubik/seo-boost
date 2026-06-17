@@ -3,6 +3,21 @@
 Všechny výrazné změny jsou dokumentovány v tomto souboru.
 Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
 
+## [0.9.0] – 2026-06-17
+
+### Přidáno
+- **M12: JS Render Gap detektor** (`includes/JsRenderGap/`) – nový modul `js-render-gap` (výchozí vypnuto):
+  - `BeaconReceiver.php` – REST endpoint `POST /wp-json/seo-booster/v1/js-gap`; přijímá DOM snapshoty z frontend beaconu; rate limit 1×/24h per URL per IP hash
+  - `Comparator.php` – porovnává rendered DOM snapshot s raw HTML (staženo přes `wp_remote_get`); detekuje: H1 chybí v raw, title/meta description mismatch, JSON-LD gap, text ratio kritický/varování; vypočítá gap score 0–100
+  - `ScanRunner.php` – dávkové porovnání (cron `seob_js_gap_scan`, pondělí 03:30 UTC, max 10 URL/dávka); on-demand analýza jedné URL; zapisuje metriky `pages_with_gap` a `avg_gap_score` do `seo_booster_metrics`
+  - `Ajax.php` – 4 AJAX handlery: statistiky, výsledky (filtry + stránkování), on-demand analýza jedné URL, spuštění batch scanu
+  - `assets/js/js-render-gap-beacon.js` – lightweight frontend beacon (< 1.5 kB); zachytí DOM po DOMContentLoaded + 800ms zpoždění; localStorage rate limit 7 dní per URL; odesílá: title, h1, headings, meta desc, JSON-LD count, text length, links count
+  - `templates/admin/page-js-render-gap.php` – admin dashboard se stat boxy, filtry (kritické/varování/OK), výsledkovou tabulkou a legendou skóre
+  - `assets/admin/js/js-render-gap.js` – dashboard JS: stats, filtry, výsledky s inline re-analýzou, stránkování
+  - `docs/modules/js-render-gap.md` – dokumentace dle spec (proč / co se zlepší / monitoring / health check tabulka)
+  - DB tabulky: `seo_booster_js_gap_snapshots` (rendered DOM data z beaconu) + `seo_booster_js_gap_results` (výsledky porovnání + gap score)
+  - Gap skóre: 0–19 = OK, 20–49 = varování, 50–100 = kritické
+
 ## [Unreleased]
 
 ### Přidáno

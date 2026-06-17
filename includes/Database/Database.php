@@ -78,4 +78,34 @@ class SEOB_Database {
 		global $wpdb;
 		return $wpdb->prefix . 'seo_booster_link_scans';
 	}
+
+	public static function hreflang_groups_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_hreflang_groups';
+	}
+
+	public static function hreflang_members_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_hreflang_members';
+	}
+
+	public static function cwv_raw_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_cwv_raw';
+	}
+
+	public static function cwv_daily_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_cwv_daily';
+	}
+
+	public static function js_gap_snapshots_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_js_gap_snapshots';
+	}
+
+	public static function js_gap_results_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_js_gap_results';
+	}
 }

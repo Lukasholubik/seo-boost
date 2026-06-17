@@ -5,7 +5,60 @@
 
 ---
 
-## 🟢 ZAČNI ZDE – session 2026-06-16 (NEPUSHNUTO)
+## 🟢 ZAČNI ZDE – session 2026-06-17 – v0.9.0 – M12: JS Render Gap (NEPUSHNUTO)
+
+**Nově: M12 – JS Render Gap detektor.** Nový modul `js-render-gap` (výchozí: vypnuto).
+Frontend beacon (< 1.5 kB, localStorage rate limit 7 dní) sbírá rendered DOM; REST endpoint
+`POST /wp-json/seo-booster/v1/js-gap` ukládá snapshoty; `Comparator` stáhne raw HTML
+a porovná title/H1/meta/JSON-LD/text ratio; gap score 0–100; admin dashboard s filtry/re-analýzou;
+WP-Cron `seob_js_gap_scan` každé pondělí 03:30 UTC.
+`php -l` OK na všech souborech. `SEOB_VERSION` 0.8.0 → 0.9.0, `SEOB_DB_VERSION` 0.9.0.
+Nové DB tabulky: `seo_booster_js_gap_snapshots` + `seo_booster_js_gap_results`.
+`weekly` WP-Cron schedule registrován přes `cron_schedules` filter v `Plugin.php`.
+
+**DALŠÍ KROK pro M12:** Aktivovat modul „JS Render Gap" v Nastavení → Moduly,
+ověřit menu položku „JS Render Gap", navštívit pár stránek webu (beacon odešle snapshot),
+v dashboardu kliknout „Spustit analýzu" a ověřit výsledkovou tabulku.
+
+**Zbývá implementovat (ze zadání):**
+- M7: Search Console konektor (full OAuth)
+- M9: HTTP hlavičky a bezpečnost
+- M10: Content Decay Monitor
+
+---
+
+## 🟡 Předchozí ZAČNI ZDE – session 2026-06-16 update 10 (NEPUSHNUTO)
+
+**Nově: M3 – JSON-LD Validator + detektor duplicit.** Novy modul `json-ld` (vychozi: vypnuto).
+Extrahuje `application/ld+json` bloky z renderovaneho HTML, validuje vuci schema.org,
+detekuje duplicitni schemata. Tridy: `SEOB_JsonLd_Validator`, `SEOB_JsonLd_PageScanner`,
+`SEOB_JsonLd_Ajax`. Admin stranka `seob-json-ld`, JS `json-ld.js`, health checks.
+21 novych PHPUnit testu. `composer test` – **96/96 OK** (bylo 75). `php -l` OK.
+`SEOB_VERSION` 0.7.0 -> 0.8.0.
+
+---
+
+## 🟡 Předchozí ZAČNI ZDE – session 2026-06-16 update 5 (NEPUSHNUTO)
+
+**Nově: M8 – Hreflang Manager.** Nový modul `hreflang` (výchozí: vypnuto).
+DB tabulky `seo_booster_hreflang_groups` + `seo_booster_hreflang_members`
+(`SEOB_DB_VERSION` → `0.7.0`, `SEOB_VERSION` → `0.6.0`).
+Skupinový model: 1 skupina = 1 dokument ve více jazycích.
+Hreflang tagy se vkládají do `<head>` přes `wp_head` (priorita 2).
+Výstup je automaticky blokován, pokud je detekován RM Pro nebo Yoast Premium.
+Validátor hlásí stránky ve více skupinách + nepublikované stránky.
+Admin UI: card listing skupin + modal s autocomplete vyhledáváním stránek.
+
+**Soubory:** `includes/Hreflang/Manager.php`, `includes/Hreflang/Ajax.php`,
+`templates/admin/page-hreflang.php`, `assets/admin/js/hreflang.js`.
+`php -l` **neověřeno**, UI **neotestováno** – nutno aktivovat modul v Nastavení → Moduly.
+
+**DALŠÍ KROK pro M8:** Aktivovat modul Hreflang v Nastavení → Moduly, ověřit
+menu položku „Hreflang Manager", vytvořit testovací skupinu, spustit validaci.
+
+---
+
+## 🟡 Předchozí ZAČNI ZDE – session 2026-06-16 (NEPUSHNUTO)
 
 **Nově: tlačítko „Vložit linky" v metaboxu editoru (M6 rozšíření).**
 `includes/InternalLinks/LinkInserter.php` (nový), `Ajax.php` (+`seob_links_insert`),
