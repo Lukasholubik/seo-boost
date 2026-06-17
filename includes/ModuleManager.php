@@ -88,6 +88,12 @@ class SEOB_Module_Manager {
 			'classes'     => [ 'SEOB_JsGap_BeaconReceiver', 'SEOB_JsGap_ScanRunner', 'SEOB_JsGap_Ajax' ],
 			'depends_on'  => [],
 		],
+		'http-headers' => [
+			'label'       => 'HTTP Hlavičky & Bezpečnost',
+			'description' => 'Skenuje HTTP odpovědi stránek – bezpečnostní hlavičky (HSTS, X-Frame-Options...), x-robots-tag, HTTPS a cache hlavičky.',
+			'classes'     => [ 'SEOB_HttpHeaders_ScanRunner', 'SEOB_HttpHeaders_Ajax' ],
+			'depends_on'  => [],
+		],
 	];
 
 	/**

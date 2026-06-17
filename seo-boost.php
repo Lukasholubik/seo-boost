@@ -103,6 +103,9 @@ $seob_files = [
 	'includes/JsRenderGap/Comparator.php',
 	'includes/JsRenderGap/ScanRunner.php',
 	'includes/JsRenderGap/Ajax.php',
+	'includes/HttpHeaders/Checker.php',
+	'includes/HttpHeaders/ScanRunner.php',
+	'includes/HttpHeaders/Ajax.php',
 	'includes/Plugin.php',
 ];
 

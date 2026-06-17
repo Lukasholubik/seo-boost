@@ -98,6 +98,10 @@ class SEOB_Health_Checks {
 				return self::hreflang_checks();
 			case 'local-seo':
 				return self::local_seo_checks();
+			case 'json-ld':
+				return self::json_ld_checks();
+			case 'http-headers':
+				return self::http_headers_checks();
 			default:
 				return [];
 		}
@@ -619,6 +623,97 @@ class SEOB_Health_Checks {
 		return $checks;
 	}
 
+	private static function json_ld_checks(): array {
+		$checks = [];
+		$page_url = admin_url( 'admin.php?page=seob-json-ld' );
+
+		// Self-test validátoru
+		$self_test = SEOB_JsonLd_Validator::self_test();
+		$checks[]  = [
+			'id'           => 'json_ld_self_test',
+			'label'        => 'Validátor (self-test)',
+			'status'       => $self_test ? 'good' : 'critical',
+			'message'      => $self_test
+				? 'Validační knihovna funguje správně.'
+				: 'Self-test validátoru selhal – zkontrolujte PHP verzi (min. 8.0) a logy.',
+			'action_label' => $self_test ? null : 'Zobrazit JSON-LD Validátor',
+			'action_url'   => $self_test ? null : $page_url,
+		];
+
+		// Poslední scan
+		$data = SEOB_JsonLd_PageScanner::get_last_results();
+
+		if ( empty( $data['summary'] ) ) {
+			$checks[] = [
+				'id'           => 'json_ld_last_scan',
+				'label'        => 'Poslední scan',
+				'status'       => 'warning',
+				'message'      => 'Žádný scan JSON-LD dosud neproběhl. Spusťte první scan v sekci JSON-LD Validátor.',
+				'action_label' => 'Spustit scan',
+				'action_url'   => $page_url,
+			];
+		} else {
+			$summary  = $data['summary'];
+			$age_days = ( time() - (int) $summary['timestamp'] ) / DAY_IN_SECONDS;
+			$date_str = date_i18n( 'j. n. Y H:i', (int) $summary['timestamp'] );
+
+			if ( $age_days < 7 ) {
+				$checks[] = [
+					'id'           => 'json_ld_last_scan',
+					'label'        => 'Poslední scan',
+					'status'       => 'good',
+					'message'      => sprintf( 'Poslední scan dokončen %s (%d stránek).', $date_str, (int) $summary['scanned'] ),
+					'action_label' => null,
+					'action_url'   => null,
+				];
+			} else {
+				$checks[] = [
+					'id'           => 'json_ld_last_scan',
+					'label'        => 'Poslední scan',
+					'status'       => 'warning',
+					'message'      => sprintf( 'Poslední scan je starší než týden (%s). Spusťte nový scan.', $date_str ),
+					'action_label' => 'Spustit scan',
+					'action_url'   => $page_url,
+				];
+			}
+
+			// Nevalidní schémata
+			if ( (int) $summary['invalid'] > 0 ) {
+				$checks[] = [
+					'id'           => 'json_ld_invalid',
+					'label'        => 'Nevalidní schémata',
+					'status'       => 'critical',
+					'message'      => sprintf( '%d stránek má nevalidní JSON-LD schéma (chybějící povinná vlastnost). Opravou získáte šanci na rich snippety v Googlu.', (int) $summary['invalid'] ),
+					'action_label' => 'Zobrazit stránky s chybami',
+					'action_url'   => $page_url,
+				];
+			} else {
+				$checks[] = [
+					'id'           => 'json_ld_invalid',
+					'label'        => 'Nevalidní schémata',
+					'status'       => 'good',
+					'message'      => 'Žádné nevalidní JSON-LD schéma nenalezeno.',
+					'action_label' => null,
+					'action_url'   => null,
+				];
+			}
+
+			// Duplicitní schémata
+			if ( (int) $summary['duplicates'] > 0 ) {
+				$checks[] = [
+					'id'           => 'json_ld_duplicates',
+					'label'        => 'Duplicitní schémata',
+					'status'       => 'warning',
+					'message'      => sprintf( '%d stránek má duplicitní JSON-LD schéma stejného typu. Google může ignorovat oba bloky. Deaktivujte výstup jednoho ze zdrojů.', (int) $summary['duplicates'] ),
+					'action_label' => 'Zobrazit stránky s duplikáty',
+					'action_url'   => $page_url,
+				];
+			}
+		}
+
+		return $checks;
+	}
+
 	private static function pdf_checks(): array {
 		$loader_exists = file_exists( SEOB_PLUGIN_DIR . 'vendor/tcpdf/seob-tcpdf-loader.php' );
 
@@ -634,5 +729,62 @@ class SEOB_Health_Checks {
 				'action_url'   => null,
 			],
 		];
+	}
+
+	private static function http_headers_checks(): array {
+		$checks   = [];
+		$page_url = admin_url( 'admin.php?page=seob-http-headers' );
+		$history  = SEOB_HttpHeaders_ScanRunner::get_history();
+
+		if ( empty( $history ) ) {
+			$checks[] = [
+				'id'           => 'http_headers_last_scan',
+				'label'        => 'Poslední scan',
+				'status'       => 'warning',
+				'message'      => 'Žádný scan HTTP hlaviček dosud neproběhl.',
+				'action_label' => 'Spustit scan',
+				'action_url'   => $page_url,
+			];
+			return $checks;
+		}
+
+		$last     = $history[0];
+		$age_days = ( time() - (int) $last['started_at'] ) / DAY_IN_SECONDS;
+		$date_str = date_i18n( 'j. n. Y H:i', (int) $last['started_at'] );
+
+		$checks[] = [
+			'id'           => 'http_headers_last_scan',
+			'label'        => 'Poslední scan',
+			'status'       => $age_days < 14 ? 'good' : 'warning',
+			'message'      => $age_days < 14
+				? sprintf( 'Poslední scan dokončen %s (%d URL).', $date_str, (int) $last['scanned'] )
+				: sprintf( 'Poslední scan je starší než 2 týdny (%s).', $date_str ),
+			'action_label' => $age_days < 14 ? null : 'Spustit nový scan',
+			'action_url'   => $age_days < 14 ? null : $page_url,
+		];
+
+		if ( (int) $last['critical'] > 0 ) {
+			$checks[] = [
+				'id'           => 'http_headers_critical',
+				'label'        => 'Kritické problémy',
+				'status'       => 'critical',
+				'message'      => sprintf( '%d URL má kritický problém s HTTP hlavičkami (x-robots-tag: noindex, HTTP místo HTTPS nebo HTTP chyba). Zkontrolujte okamžitě.', (int) $last['critical'] ),
+				'action_label' => 'Zobrazit problémy',
+				'action_url'   => $page_url,
+			];
+		}
+
+		if ( (int) $last['warnings'] > 0 ) {
+			$checks[] = [
+				'id'           => 'http_headers_warnings',
+				'label'        => 'Bezpečnostní hlavičky',
+				'status'       => 'warning',
+				'message'      => sprintf( '%d URL chybí doporučené bezpečnostní hlavičky (HSTS, X-Frame-Options, X-Content-Type-Options).', (int) $last['warnings'] ),
+				'action_label' => 'Zobrazit varování',
+				'action_url'   => $page_url,
+			];
+		}
+
+		return $checks;
 	}
 }
