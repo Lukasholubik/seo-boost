@@ -115,7 +115,7 @@ class SEOB_CWV_Ajax {
 				 WHERE metric = %s AND device = %s
 				   AND day >= %s AND url_hash != '*'
 				 GROUP BY url_hash, path
-				 HAVING total_samples >= 3
+				 HAVING total_samples >= 1
 				 ORDER BY avg_p75 DESC
 				 LIMIT %d",
 				self::poor_threshold( $metric ),

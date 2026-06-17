@@ -58,6 +58,7 @@
 
       var t = THRESHOLDS[d.metric] || {};
 
+      // Datové body
       var datasets = [];
       if (!currentDevice || currentDevice === 'mobile') {
         datasets.push({
@@ -68,6 +69,7 @@
           tension: 0.3,
           spanGaps: true,
           pointRadius: 3,
+          order: 1,
         });
       }
       if (!currentDevice || currentDevice === 'desktop') {
@@ -79,6 +81,34 @@
           tension: 0.3,
           spanGaps: true,
           pointRadius: 3,
+          order: 2,
+        });
+      }
+
+      // Hranicové linie jako dataset (nevyžaduje annotation plugin)
+      var n = d.labels.length;
+      if (t.good && n > 0) {
+        datasets.push({
+          label: 'Dobrý (' + (t.unit ? t.good + ' ' + t.unit : t.good) + ')',
+          data: Array(n).fill(t.good),
+          borderColor: '#1a7f37',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+          order: 10,
+        });
+        datasets.push({
+          label: 'Špatný (' + (t.unit ? t.poor + ' ' + t.unit : t.poor) + ')',
+          data: Array(n).fill(t.poor),
+          borderColor: '#cf222e',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+          order: 11,
         });
       }
 
@@ -89,12 +119,6 @@
           responsive: true,
           plugins: {
             legend: { position: 'top' },
-            annotation: t.good ? {
-              annotations: {
-                good: { type: 'line', yMin: t.good, yMax: t.good, borderColor: '#1a7f37', borderWidth: 1, borderDash: [4,4], label: { content: 'Dobrý', display: true, position: 'end', color: '#1a7f37', backgroundColor: 'transparent', font: { size: 11 } } },
-                poor: { type: 'line', yMin: t.poor, yMax: t.poor, borderColor: '#cf222e', borderWidth: 1, borderDash: [4,4], label: { content: 'Špatný', display: true, position: 'end', color: '#cf222e', backgroundColor: 'transparent', font: { size: 11 } } },
-              },
-            } : {},
           },
           scales: {
             y: {
