@@ -8,38 +8,112 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class SEOB_JsGap_Comparator {
 
 	/**
-	 * Stáhne raw HTML pro danou cestu a porovná ji se snapshotem.
-	 * Vrátí pole [ 'gap_score', 'issues', 'raw_*' ].
+	 * Analyzuje snapshot vůči raw (pre-JS) datům stránky.
+	 * Používá WordPress API místo HTTP requestu, aby nedošlo k deadlocku
+	 * na lokálních serverech s jedním PHP workerem (Local by Flywheel apod.).
 	 */
 	public static function analyze( array $snapshot ): ?array {
-		$path     = $snapshot['path'] ?? '';
-		$site_url = trailingslashit( home_url() );
-		$url      = $site_url . ltrim( $path, '/' );
+		$path = $snapshot['path'] ?? '';
+		if ( $path === '' ) return null;
 
-		$response = wp_remote_get( $url, [
-			'timeout'   => 8,
-			'sslverify' => false,
-			'headers'   => [ 'User-Agent' => 'Mozilla/5.0 (compatible; SEO-Booster-RenderGap/1.0)' ],
-		] );
+		$raw = self::get_raw_via_wp( $path );
+		if ( null === $raw ) return null;
 
-		if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-			return null;
-		}
-
-		$raw_html = wp_remote_retrieve_body( $response );
-		$raw      = self::parse_raw_html( $raw_html );
-		$issues   = self::compare( $snapshot, $raw );
-		$score    = self::calc_score( $issues );
+		$issues = self::compare( $snapshot, $raw );
+		$score  = self::calc_score( $issues );
 
 		return [
-			'gap_score'       => $score,
-			'issues_json'     => wp_json_encode( $issues ),
-			'raw_title'       => $raw['title'],
-			'raw_h1'          => $raw['h1'],
-			'raw_meta_desc'   => $raw['meta_desc'],
+			'gap_score'         => $score,
+			'issues_json'       => wp_json_encode( $issues ),
+			'raw_title'         => $raw['title'],
+			'raw_h1'            => $raw['h1s'][0] ?? '',
+			'raw_meta_desc'     => $raw['meta_desc'],
 			'raw_json_ld_count' => $raw['json_ld_count'],
-			'raw_text_len'    => $raw['text_len'],
-			'raw_links_count' => $raw['links_count'],
+			'raw_text_len'      => $raw['text_len'],
+			'raw_links_count'   => $raw['links_count'],
+		];
+	}
+
+	/**
+	 * Získá "raw" (pre-JS) metadata stránky přes WordPress API – bez HTTP requestu.
+	 * Pro standardní WP stránky/příspěvky a Rank Math.
+	 */
+	private static function get_raw_via_wp( string $path ): ?array {
+		$url     = home_url( $path );
+		$post_id = url_to_postid( $url );
+
+		if ( $post_id > 0 ) {
+			$post = get_post( $post_id );
+			if ( ! $post || $post->post_status !== 'publish' ) return null;
+
+			// Title: Rank Math / Yoast nastavují title server-side, výsledek = to co vidí crawler
+			$raw_title = trim( get_post_meta( $post_id, 'rank_math_title', true ) ?: '' );
+			if ( $raw_title === '' ) {
+				$raw_title = get_the_title( $post_id ) . ' – ' . get_bloginfo( 'name' );
+			} else {
+				// Nahraď Rank Math proměnné základními hodnotami
+				$raw_title = str_replace(
+					[ '%title%', '%sitename%', '%sep%' ],
+					[ get_the_title( $post_id ), get_bloginfo( 'name' ), '–' ],
+					$raw_title
+				);
+			}
+
+			// H1: v standard WP tématech = titulek příspěvku
+			$raw_h1 = get_the_title( $post_id );
+
+			// Meta description: Rank Math post meta
+			$raw_meta_desc = trim( get_post_meta( $post_id, 'rank_math_description', true ) ?: '' );
+			if ( $raw_meta_desc === '' ) {
+				// Fallback: excerpt
+				$raw_meta_desc = trim( get_post_meta( $post_id, '_yoast_wpseo_metadesc', true ) ?: '' );
+			}
+			if ( $raw_meta_desc === '' ) {
+				$raw_meta_desc = trim( get_the_excerpt( $post_id ) );
+			}
+
+			// JSON-LD: Rank Math schema bloky
+			$raw_json_ld = 0;
+			if ( class_exists( '\RankMath\Schema\DB' ) ) {
+				$schemas     = \RankMath\Schema\DB::get_schemas( $post_id );
+				$raw_json_ld = is_array( $schemas ) ? count( $schemas ) : 0;
+			}
+			if ( $raw_json_ld === 0 && class_exists( 'RankMath' ) ) {
+				// Rank Math vždy generuje alespoň WebPage schema pro každou stránku
+				$raw_json_ld = 1;
+			}
+
+			// Text length: obsah příspěvku bez tagů
+			$content  = get_post_field( 'post_content', $post_id );
+			$raw_text = mb_strlen( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $content ) ) );
+
+			// Interní odkazy v obsahu
+			$raw_links = substr_count( $content, '<a ' );
+
+			return [
+				'title'         => $raw_title,
+				'h1s'           => [ $raw_h1 ],
+				'meta_desc'     => $raw_meta_desc,
+				'json_ld_count' => $raw_json_ld,
+				'text_len'      => $raw_text,
+				'links_count'   => $raw_links,
+			];
+		}
+
+		// Homepage nebo archiv – zjednodušená data
+		$front_page_id = (int) get_option( 'page_on_front' );
+		if ( $front_page_id && ( $path === '/' || $path === '' || $path === home_url( '/' ) ) ) {
+			return self::get_raw_via_wp( get_permalink( $front_page_id ) ? str_replace( home_url(), '', get_permalink( $front_page_id ) ) : '/' );
+		}
+
+		// Neznamý typ URL – vrátíme základní data, gap score bude 0
+		return [
+			'title'         => get_bloginfo( 'name' ),
+			'h1s'           => [],
+			'meta_desc'     => get_bloginfo( 'description' ),
+			'json_ld_count' => 0,
+			'text_len'      => 0,
+			'links_count'   => 0,
 		];
 	}
 
