@@ -42,6 +42,7 @@ class SEOB_Settings_Ajax {
 				'json-ld'        => $this->bool_field( 'modules_json_ld' ),
 				'cwv-rum'        => $this->bool_field( 'modules_cwv_rum' ),
 				'js-render-gap'  => $this->bool_field( 'modules_js_render_gap' ),
+				'http-headers'   => $this->bool_field( 'modules_http_headers' ),
 			],
 		];
 

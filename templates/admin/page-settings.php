@@ -86,6 +86,11 @@ $pagespeed = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
 						<input type="checkbox" name="modules_js_render_gap" value="1" <?php checked( ! empty( $general['modules']['js-render-gap'] ) ); ?>>
 						<?php esc_html_e( 'JS Render Gap – detekuje obsah skrytý Googlu bez JS renderování (porovnání raw HTML vs. rendered DOM)', 'seo-boost' ); ?>
 					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_http_headers" value="1" <?php checked( ! empty( $general['modules']['http-headers'] ) ); ?>>
+						<?php esc_html_e( 'HTTP Hlavičky & Bezpečnost – kontroluje x-robots-tag, HTTPS, HSTS, X-Frame-Options a cache hlavičky', 'seo-boost' ); ?>
+					</label>
 				</td>
 			</tr>
 			<tr>
