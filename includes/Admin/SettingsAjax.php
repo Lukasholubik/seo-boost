@@ -43,6 +43,7 @@ class SEOB_Settings_Ajax {
 				'cwv-rum'        => $this->bool_field( 'modules_cwv_rum' ),
 				'js-render-gap'  => $this->bool_field( 'modules_js_render_gap' ),
 				'http-headers'   => $this->bool_field( 'modules_http_headers' ),
+				'content-decay'  => $this->bool_field( 'modules_content_decay' ),
 			],
 		];
 

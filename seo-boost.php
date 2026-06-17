@@ -106,6 +106,9 @@ $seob_files = [
 	'includes/HttpHeaders/Checker.php',
 	'includes/HttpHeaders/ScanRunner.php',
 	'includes/HttpHeaders/Ajax.php',
+	'includes/ContentDecay/Analyzer.php',
+	'includes/ContentDecay/Scanner.php',
+	'includes/ContentDecay/Ajax.php',
 	'includes/Plugin.php',
 ];
 

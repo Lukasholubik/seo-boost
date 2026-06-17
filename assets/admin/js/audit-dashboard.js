@@ -474,6 +474,66 @@
 		} );
 	}
 
+	function escHtml( str ) {
+		var d = document.createElement( 'div' );
+		d.textContent = String( str == null ? '' : str );
+		return d.innerHTML;
+	}
+
+	function renderJsonLdAuditResult( d, editUrl ) {
+		if ( d.status === 'error' ) {
+			return '<p style="color:#d63638;">Chyba nacitani: ' + escHtml( d.error ) + '</p>';
+		}
+
+		var html = '<p style="margin:0 0 6px 0;"><strong>Schemat: ' + d.schema_count + '</strong>';
+		if ( d.schema_types && d.schema_types.length ) {
+			html += ' <span style="color:#666;font-size:12px;">(' + d.schema_types.map( escHtml ).join( ', ' ) + ')</span>';
+		}
+		html += '</p>';
+
+		if ( d.issues && d.issues.length ) {
+			html += '<ul style="margin:0 0 6px 0;padding:0;list-style:none;">';
+			d.issues.forEach( function ( i ) {
+				var isErr = i.severity === 'error';
+				var c     = isErr ? '#d63638' : '#dba617';
+				var bg    = isErr ? '#fff0f0' : '#fffbee';
+				var icon  = isErr ? '&#10060;' : '&#9888;';
+				html += '<li style="padding:7px 10px;margin:3px 0;border-radius:4px;border-left:3px solid ' + c + ';background:' + bg + ';">';
+				html += '<strong style="color:' + c + '">' + icon + ' ' + escHtml( i.type ) + '</strong>: ' + escHtml( i.message );
+				if ( i.fix_hint ) {
+					html += '<div style="margin-top:4px;font-size:12px;color:#50575e;"><strong>Jak opravit:</strong> ' + i.fix_hint;
+					if ( editUrl ) {
+						html += ' &rarr; <a href="' + escHtml( editUrl ) + '" target="_blank" rel="noopener" style="color:#2271b1;font-weight:600;">Otevrit editor</a>';
+					}
+					html += '</div>';
+				}
+				html += '</li>';
+			} );
+			html += '</ul>';
+		} else if ( ! ( d.duplicates && d.duplicates.length ) ) {
+			html += '<p style="color:#00a32a;margin:0;">&#10003; JSON-LD v poradku – zadne chyby.</p>';
+		}
+
+		if ( d.duplicates && d.duplicates.length ) {
+			html += '<ul style="margin:4px 0 0 0;padding:0;list-style:none;">';
+			d.duplicates.forEach( function ( dup ) {
+				var c  = dup.exact ? '#d63638' : '#dba617';
+				var bg = dup.exact ? '#fff0f0' : '#fffbee';
+				html += '<li style="padding:7px 10px;margin:3px 0;border-radius:4px;border-left:3px solid ' + c + ';background:' + bg + ';">';
+				html += '<strong style="color:' + c + '">' + ( dup.exact ? '&#10060;' : '&#9888;' ) + ' Duplicita</strong>: ';
+				html += escHtml( dup.type ) + ' &times;' + dup.count;
+				html += '<div style="margin-top:4px;font-size:12px;color:#50575e;">Zjistete, ktery plugin generuje druhe schema tohoto typu (Ctrl+U – zdrojovy kod).';
+				if ( editUrl ) {
+					html += ' &rarr; <a href="' + escHtml( editUrl ) + '" target="_blank" rel="noopener" style="color:#2271b1;font-weight:600;">Otevrit editor</a>';
+				}
+				html += '</div></li>';
+			} );
+			html += '</ul>';
+		}
+
+		return html;
+	}
+
 	function buildRow( row, index ) {
 		var fragment   = rowTemplate.content.cloneNode( true );
 		var resultRow  = fragment.querySelector( '.seob-result-row' );
@@ -702,6 +762,41 @@
 				tr.appendChild( impressionsCell );
 
 				gscQueriesBody.appendChild( tr );
+			} );
+		}
+
+		// ── JSON-LD sekce ─────────────────────────────────────────────────────
+		if ( seobData.jsonLdActive ) {
+			var jsonldPanel    = panel.querySelector( '.seob-jsonld-panel' );
+			var jsonldCheckBtn = panel.querySelector( '.seob-jsonld-check-btn' );
+			var jsonldStatus   = panel.querySelector( '.seob-jsonld-status' );
+			var jsonldResult   = panel.querySelector( '.seob-jsonld-result' );
+			var jsonldFullLink = panel.querySelector( '.seob-jsonld-fullpage-link' );
+
+			jsonldPanel.hidden = false;
+			if ( jsonldFullLink ) {
+				jsonldFullLink.href = seobData.jsonLdUrl || '#';
+			}
+
+			jsonldCheckBtn.addEventListener( 'click', function () {
+				jsonldCheckBtn.disabled = true;
+				jsonldStatus.textContent = 'Kontroluji…';
+				jsonldResult.innerHTML = '';
+
+				ajax( 'seob_json_ld_scan_url', { url: row.url } ).then( function ( res ) {
+					jsonldCheckBtn.disabled = false;
+					jsonldStatus.textContent = '';
+
+					if ( ! res.success ) {
+						jsonldStatus.textContent = 'Chyba: ' + ( ( res.data && res.data.message ) || 'Neznama chyba' );
+						return;
+					}
+
+					jsonldResult.innerHTML = renderJsonLdAuditResult( res.data, row.edit_link );
+				} ).catch( function () {
+					jsonldCheckBtn.disabled = false;
+					jsonldStatus.textContent = 'Sitova chyba.';
+				} );
 			} );
 		}
 

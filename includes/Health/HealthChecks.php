@@ -102,6 +102,8 @@ class SEOB_Health_Checks {
 				return self::json_ld_checks();
 			case 'http-headers':
 				return self::http_headers_checks();
+			case 'content-decay':
+				return self::content_decay_checks();
 			default:
 				return [];
 		}
@@ -729,6 +731,62 @@ class SEOB_Health_Checks {
 				'action_url'   => null,
 			],
 		];
+	}
+
+	private static function content_decay_checks(): array {
+		$checks   = [];
+		$page_url = admin_url( 'admin.php?page=seob-content-decay' );
+		$last     = SEOB_ContentDecay_Scanner::get_last();
+
+		if ( null === $last ) {
+			$checks[] = [
+				'id'           => 'content_decay_last_scan',
+				'label'        => 'Content Decay – poslední scan',
+				'status'       => 'warning',
+				'message'      => 'Žádný Content Decay scan dosud neproběhl.',
+				'action_label' => 'Spustit scan',
+				'action_url'   => $page_url,
+			];
+			return $checks;
+		}
+
+		$age_days = ( time() - (int) $last['scanned_at'] ) / DAY_IN_SECONDS;
+		$date_str = date_i18n( 'j. n. Y H:i', (int) $last['scanned_at'] );
+
+		$checks[] = [
+			'id'           => 'content_decay_last_scan',
+			'label'        => 'Content Decay – poslední scan',
+			'status'       => $age_days < 30 ? 'good' : 'warning',
+			'message'      => $age_days < 30
+				? sprintf( 'Poslední scan %s. Analyzováno %d stránek.', $date_str, (int) $last['total'] )
+				: sprintf( 'Poslední scan je starší než 30 dní (%s). Doporučujeme spustit nový.', $date_str ),
+			'action_label' => $age_days < 30 ? null : 'Spustit scan',
+			'action_url'   => $age_days < 30 ? null : $page_url,
+		];
+
+		if ( (int) $last['decaying'] > 0 ) {
+			$checks[] = [
+				'id'           => 'content_decay_critical',
+				'label'        => 'Chřadnoucí stránky',
+				'status'       => 'critical',
+				'message'      => sprintf( '%d stránek má decay skóre ≥ 61 – starý obsah a/nebo prudký pokles organické návštěvnosti. Vyžaduje aktualizaci.', (int) $last['decaying'] ),
+				'action_label' => 'Zobrazit stránky',
+				'action_url'   => $page_url,
+			];
+		}
+
+		if ( (int) $last['stale'] > 0 ) {
+			$checks[] = [
+				'id'           => 'content_decay_warning',
+				'label'        => 'Stagnující stránky',
+				'status'       => 'warning',
+				'message'      => sprintf( '%d stránek stagnuje (decay skóre 41–60). Zvažte aktualizaci obsahu.', (int) $last['stale'] ),
+				'action_label' => 'Zobrazit stránky',
+				'action_url'   => $page_url,
+			];
+		}
+
+		return $checks;
 	}
 
 	private static function http_headers_checks(): array {

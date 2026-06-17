@@ -7,6 +7,56 @@
 
 ## Záznamy
 
+### 2026-06-17 – v0.9.0 – Bezpečnostní audit + modul průvodce
+
+**Co bylo uděláno:**
+- Provedena kompletní kontrola všech AJAX endpointů: nonce, capability checks, sanitizace, SQL injection, XSS.
+- Nalezeny a opraveny 3 bezpečnostní problémy:
+  1. **SSRF** v `HttpHeaders\Ajax::check_single_url()` a `JsonLd\Ajax::scan_single_url()` – server mohl provolat libovolnou interní URL. Opraveno: přidána validace same-domain (host === home_url host).
+  2. **XSS risk** v `JsRenderGap\BeaconReceiver` – headings array položky nebyly sanitizovány. Opraveno: `sanitize_text_field()` + 200 char limit na každý item.
+  3. **Data bounds** v `JsRenderGap\BeaconReceiver` – chybějící min/max pro numerické pole. Opraveno.
+- Vytvořena dokumentace `docs/security.md` – popis všech bezpečnostních opatření.
+- Vytvořena dokumentace `docs/module-guide.md` – průvodce moduly (always-on vs occasional), frekvence spouštění, overhead, závislosti.
+
+**Kategorizace modulů:**
+- **Always-On:** audit, redirects, smart-indexing, gsc-insights, cwv-rum, hreflang, local-seo, internal-links
+- **Occasional (scan & turn off):** json-ld, js-render-gap, http-headers, content-decay, pagespeed, ai-queue, pdf
+
+**Upravené soubory:**
+- `includes/HttpHeaders/Ajax.php` – SSRF fix: `validate_site_url()` helper
+- `includes/JsonLd/Ajax.php` – SSRF fix: `validate_site_url()` helper
+- `includes/JsRenderGap/BeaconReceiver.php` – XSS fix + data bounds
+
+---
+
+### 2026-06-17 – v0.9.0 – M10: Content Decay Monitor
+
+**Co bylo uděláno:**
+- Nový modul `content-decay` – identifikuje stránky, jejichž obsah stárne nebo ztrácí organické pozice/kliky.
+- Scan je **synchronní** (žádný WP-Cron) – jde o čisté DB queries (wp_posts + Rank Math GSC tabulka).
+- Decay signály: věk obsahu (post_modified), pokles GSC kliků (last 30d vs. předchozích 30d), pokles průměrné pozice, stará letní zmínka v textu, tenký obsah.
+- Decay skóre 0–100: Čerstvé (0–20) / Stárnoucí (21–40) / Stagnující (41–60) / Chřadnoucí (61+).
+- Pokud Rank Math nemá GSC data, GSC signály se přeskočí – funguje jen s lokálními daty.
+- Health check integrace: critical při decay ≥ 61, warning při stale ≥ 41, warning po 30 dnech bez scanu.
+
+**Nové soubory:**
+- `includes/ContentDecay/Analyzer.php` – výpočet decay skóre pro jeden příspěvek
+- `includes/ContentDecay/Scanner.php` – bulk scan (max 200 postů, 2 SQL queries pro GSC)
+- `includes/ContentDecay/Ajax.php` – 3 AJAX endpointy
+- `templates/admin/page-content-decay.php` – dashboard s kartami, filtrem, tabulkou
+- `assets/admin/js/content-decay.js` – frontend
+- `docs/modules/content-decay.md` – dokumentace
+
+**Upravené soubory:**
+- `includes/ModuleManager.php` – přidán modul `content-decay`
+- `includes/Admin/Admin.php` – submenu + enqueue + page_content_decay()
+- `seo-boost.php` – 3 require_once pro ContentDecay/*
+- `templates/admin/page-settings.php` – checkbox `modules_content_decay`
+- `includes/Admin/SettingsAjax.php` – klíč `content-decay` v modules[]
+- `includes/Health/HealthChecks.php` – case `content-decay` + content_decay_checks()
+
+---
+
 ### 2026-06-17 – v0.9.0 – M9: HTTP Hlavičky & Bezpečnost
 
 **Nový modul `http-headers` (výchozí: vypnuto).** Skenuje HTTP odpovědi stránek webu přes `wp_remote_head()`.

@@ -18,6 +18,10 @@ if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
 	define( 'HOUR_IN_SECONDS', 3600 );
 }
 
+if ( ! defined( 'ARRAY_A' ) ) {
+	define( 'ARRAY_A', 'ARRAY_A' );
+}
+
 if ( ! function_exists( '__' ) ) {
 	function __( string $text, string $domain = 'default' ): string {
 		return $text;

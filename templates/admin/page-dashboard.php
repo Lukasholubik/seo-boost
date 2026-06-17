@@ -173,6 +173,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</table>
 					<p class="seob-gsc-queries-empty description"></p>
 				</div>
+				<div class="seob-jsonld-panel" hidden>
+					<hr style="border:none;border-top:1px solid #e0e0e0;margin:14px 0 10px 0;">
+					<h4 style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:#1d2327;">
+						JSON-LD schémata
+						<a class="seob-jsonld-fullpage-link" href="#" target="_blank" rel="noopener"
+						   style="font-weight:400;font-size:11px;margin-left:8px;color:#2271b1;">
+							<?php esc_html_e( 'Zobrazit plný validátor', 'seo-boost' ); ?>
+						</a>
+					</h4>
+					<div class="seob-jsonld-check-wrap" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+						<button type="button" class="button seob-jsonld-check-btn">
+							<?php esc_html_e( 'Zkontrolovat JSON-LD', 'seo-boost' ); ?>
+						</button>
+						<span class="seob-jsonld-status" style="font-size:12px;color:#666;"></span>
+					</div>
+					<div class="seob-jsonld-result" style="margin-top:8px;"></div>
+				</div>
+
 				<div class="seob-edit-actions">
 					<button type="button" class="button button-primary seob-save-meta"><?php esc_html_e( 'Uložit', 'seo-boost' ); ?></button>
 					<button type="button" class="button seob-cancel-edit"><?php esc_html_e( 'Zavřít', 'seo-boost' ); ?></button>

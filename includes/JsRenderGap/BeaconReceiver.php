@@ -49,16 +49,20 @@ class SEOB_JsGap_BeaconReceiver {
 		global $wpdb;
 		$snap_table = SEOB_Database::js_gap_snapshots_table();
 
+		// Sanitize headings array – každý item jako text (ochrana před XSS v admin UI)
+		$raw_headings = array_slice( (array) ( $payload['headings'] ?? [] ), 0, 30 );
+		$headings     = array_map( static fn( $h ) => mb_substr( sanitize_text_field( (string) $h ), 0, 200 ), $raw_headings );
+
 		$wpdb->replace( $snap_table, [
 			'url_hash'         => $url_hash,
 			'path'             => $path,
-			'title'            => sanitize_text_field( $payload['title'] ?? '' ),
-			'h1'               => sanitize_text_field( implode( ' | ', (array) ( $payload['h1'] ?? [] ) ) ),
-			'headings_json'    => wp_json_encode( array_slice( (array) ( $payload['headings'] ?? [] ), 0, 30 ) ),
-			'meta_desc'        => sanitize_text_field( $payload['meta_desc'] ?? '' ),
-			'json_ld_count'    => max( 0, (int) ( $payload['json_ld_count'] ?? 0 ) ),
-			'text_len'         => max( 0, (int) ( $payload['text_len'] ?? 0 ) ),
-			'links_count'      => max( 0, (int) ( $payload['links_count'] ?? 0 ) ),
+			'title'            => mb_substr( sanitize_text_field( $payload['title'] ?? '' ), 0, 300 ),
+			'h1'               => mb_substr( sanitize_text_field( implode( ' | ', (array) ( $payload['h1'] ?? [] ) ) ), 0, 300 ),
+			'headings_json'    => wp_json_encode( array_values( $headings ) ),
+			'meta_desc'        => mb_substr( sanitize_text_field( $payload['meta_desc'] ?? '' ), 0, 500 ),
+			'json_ld_count'    => max( 0, min( 100, (int) ( $payload['json_ld_count'] ?? 0 ) ) ),
+			'text_len'         => max( 0, min( 1000000, (int) ( $payload['text_len'] ?? 0 ) ) ),
+			'links_count'      => max( 0, min( 10000, (int) ( $payload['links_count'] ?? 0 ) ) ),
 			'received_at'      => current_time( 'mysql', true ),
 		] );
 

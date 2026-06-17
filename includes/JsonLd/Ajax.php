@@ -1,25 +1,26 @@
 <?php
 /**
- * AJAX endpointy pro HTTP Headers Scanner.
+ * AJAX endpointy pro JSON-LD Validátor.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class SEOB_HttpHeaders_Ajax {
+class SEOB_JsonLd_Ajax {
 
 	const NONCE_ACTION = 'seob_admin_nonce';
 
 	public function __construct() {
-		add_action( 'wp_ajax_seob_http_headers_start_scan',   [ $this, 'start_scan' ] );
-		add_action( 'wp_ajax_seob_http_headers_cancel_scan',  [ $this, 'cancel_scan' ] );
-		add_action( 'wp_ajax_seob_http_headers_scan_status',  [ $this, 'scan_status' ] );
-		add_action( 'wp_ajax_seob_http_headers_get_history',  [ $this, 'get_history' ] );
-		add_action( 'wp_ajax_seob_http_headers_get_results',  [ $this, 'get_results' ] );
-		add_action( 'wp_ajax_seob_http_headers_check_url',    [ $this, 'check_single_url' ] );
+		add_action( 'wp_ajax_seob_json_ld_start_scan',   [ $this, 'start_scan' ] );
+		add_action( 'wp_ajax_seob_json_ld_cancel_scan',  [ $this, 'cancel_scan' ] );
+		add_action( 'wp_ajax_seob_json_ld_scan_status',  [ $this, 'scan_status' ] );
+		add_action( 'wp_ajax_seob_json_ld_get_history',  [ $this, 'get_history' ] );
+		add_action( 'wp_ajax_seob_json_ld_get_results',  [ $this, 'get_results' ] );
+		add_action( 'wp_ajax_seob_json_ld_scan_url',     [ $this, 'scan_single_url' ] );
 	}
 
+	/** Spusti novy scan na pozadi (WP-Cron). */
 	public function start_scan(): void {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -27,38 +28,47 @@ class SEOB_HttpHeaders_Ajax {
 		}
 
 		$limit = min( (int) ( $_POST['limit'] ?? 50 ), 100 );
-		wp_send_json_success( SEOB_HttpHeaders_ScanRunner::start( $limit ) );
+		wp_send_json_success( SEOB_JsonLd_ScanRunner::start( $limit ) );
 	}
 
+	/** Zrusi probihajici scan. */
 	public function cancel_scan(): void {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => 'Nemáte oprávnění.' ], 403 );
 		}
 
-		SEOB_HttpHeaders_ScanRunner::cancel();
+		SEOB_JsonLd_ScanRunner::cancel();
 		wp_send_json_success( [ 'message' => 'Scan zrušen.' ] );
 	}
 
+	/** Vraci aktualni stav scanu (pro polling). */
 	public function scan_status(): void {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => 'Nemáte oprávnění.' ], 403 );
 		}
 
-		$active = SEOB_HttpHeaders_ScanRunner::get_active();
-		wp_send_json_success( empty( $active ) ? [ 'status' => 'none' ] : $active );
+		$active = SEOB_JsonLd_ScanRunner::get_active();
+		if ( empty( $active ) ) {
+			wp_send_json_success( [ 'status' => 'none' ] );
+			return;
+		}
+
+		wp_send_json_success( $active );
 	}
 
+	/** Vraci archiv skenů. */
 	public function get_history(): void {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => 'Nemáte oprávnění.' ], 403 );
 		}
 
-		wp_send_json_success( SEOB_HttpHeaders_ScanRunner::get_history() );
+		wp_send_json_success( SEOB_JsonLd_ScanRunner::get_history() );
 	}
 
+	/** Vraci URL-detaily konkretniho scanu. */
 	public function get_results(): void {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -70,11 +80,11 @@ class SEOB_HttpHeaders_Ajax {
 			wp_send_json_error( [ 'message' => 'Chybí scan_id.' ] );
 		}
 
-		wp_send_json_success( SEOB_HttpHeaders_ScanRunner::get_results( $scan_id ) );
+		wp_send_json_success( SEOB_JsonLd_ScanRunner::get_results( $scan_id ) );
 	}
 
-	/** Rychlá kontrola jedné URL (panel "Zkontrolovat URL"). */
-	public function check_single_url(): void {
+	/** Validuje jednu konkretni URL (panel "Validovat URL"). */
+	public function scan_single_url(): void {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( [ 'message' => 'Nemáte oprávnění.' ], 403 );
@@ -90,12 +100,11 @@ class SEOB_HttpHeaders_Ajax {
 			wp_send_json_error( [ 'message' => $error ], 400 );
 		}
 
-		wp_send_json_success( SEOB_HttpHeaders_Checker::check( $url ) );
+		wp_send_json_success( SEOB_JsonLd_PageScanner::scan_url( $url ) );
 	}
 
 	/**
 	 * Ověří, že URL patří na tento web (ochrana před SSRF).
-	 * Povoluje jen http/https a URL se stejnou hostname jako home_url.
 	 *
 	 * @return string|null  Chybová zpráva nebo null při validní URL.
 	 */
@@ -109,7 +118,7 @@ class SEOB_HttpHeaders_Ajax {
 		$site_host = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 
 		if ( empty( $host ) || $host !== $site_host ) {
-			return sprintf( 'Lze kontrolovat jen URL na tomto webu (%s).', $site_host );
+			return sprintf( 'Lze validovat jen URL na tomto webu (%s).', $site_host );
 		}
 
 		return null;

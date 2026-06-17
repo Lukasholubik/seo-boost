@@ -94,6 +94,12 @@ class SEOB_Module_Manager {
 			'classes'     => [ 'SEOB_HttpHeaders_ScanRunner', 'SEOB_HttpHeaders_Ajax' ],
 			'depends_on'  => [],
 		],
+		'content-decay' => [
+			'label'       => 'Content Decay Monitor',
+			'description' => 'Identifikuje stránky se stárnoucím nebo klesajícím obsahem – věk, pokles GSC kliků/pozic, stará letní zmínka, tenký obsah.',
+			'classes'     => [ 'SEOB_ContentDecay_Ajax' ],
+			'depends_on'  => [],
+		],
 	];
 
 	/**
