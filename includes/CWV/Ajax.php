@@ -158,15 +158,14 @@ class SEOB_CWV_Ajax {
 		wp_send_json_success( [ 'message' => 'Nastavení uloženo.' ] );
 	}
 
-	// ── Manuální spuštění agregace ───────────────────────────────────────────
+	// ── Manuální spuštění agregace (synchronně) ──────────────────────────────
 
 	public function ajax_run_aggregation(): void {
 		check_ajax_referer( 'seob_admin_nonce', 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) wp_die( '', 403 );
 
-		wp_schedule_single_event( time() + 3, SEOB_CWV_Aggregator::CRON_HOOK );
-		spawn_cron();
-		wp_send_json_success( [ 'message' => 'Agregace naplánována. Graf se aktualizuje za chvíli.' ] );
+		( new SEOB_CWV_Aggregator() )->run();
+		wp_send_json_success( [ 'message' => 'Agregace dokončena. Grafy jsou aktuální.' ] );
 	}
 
 	// ── Prahové hodnoty metriky (pro "poor") ─────────────────────────────────

@@ -110,45 +110,77 @@ class SEOB_JsGap_Ajax {
 		wp_send_json_success( $result );
 	}
 
-	// ── Spustit batch scan ────────────────────────────────────────────────────
+	// ── Synchronní dávkové zpracování (voláno přímo z UI) ────────────────────
 
 	public function ajax_run_scan(): void {
-		$this->auth();
-		set_transient( SEOB_JsGap_ScanRunner::RUNNING_TRANSIENT, true, 60 );
-		wp_schedule_single_event( time() + 3, SEOB_JsGap_ScanRunner::CRON_HOOK );
-		spawn_cron();
-		wp_send_json_success( [ 'message' => 'Analýza naplánována.' ] );
-	}
-
-	// ── Stav průběhu scanu ────────────────────────────────────────────────────
-
-	public function ajax_scan_status(): void {
 		$this->auth();
 		global $wpdb;
 
 		$snap_table   = SEOB_Database::js_gap_snapshots_table();
 		$result_table = SEOB_Database::js_gap_results_table();
 
-		$total    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$snap_table}" );
-		$analyzed = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$result_table}" );
-		$running  = (bool) get_transient( SEOB_JsGap_ScanRunner::RUNNING_TRANSIENT );
-		$percent  = $total > 0 ? min( 100, (int) round( ( $analyzed / $total ) * 100 ) ) : 0;
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$snap_table}" );
 
-		if ( $running ) {
-			$phase = 'Stahování raw HTML a porovnání s rendered DOM…';
-		} elseif ( $analyzed > 0 ) {
-			$phase = 'Analýza dokončena';
-		} else {
-			$phase = 'Čeká na spuštění';
+		if ( $total === 0 ) {
+			wp_send_json_success( [
+				'processed' => 0,
+				'total'     => 0,
+				'analyzed'  => 0,
+				'remaining' => 0,
+				'percent'   => 100,
+				'done'      => true,
+				'message'   => 'Žádné snapshoty k analýze. Navštivte nejprve několik stránek webu.',
+			] );
 		}
 
+		// Zpracuj dávku 3 URL synchronně
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT s.* FROM {$snap_table} s
+				 LEFT JOIN {$result_table} r ON s.url_hash = r.url_hash
+				 WHERE r.url_hash IS NULL
+				    OR r.analyzed_at < %s
+				 ORDER BY s.received_at DESC
+				 LIMIT 3",
+				gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) )
+			),
+			ARRAY_A
+		);
+
+		$processed = 0;
+		foreach ( $rows as $snap ) {
+			$result = SEOB_JsGap_Comparator::analyze( $snap );
+			if ( null === $result ) continue;
+
+			$wpdb->replace( $result_table, array_merge( [
+				'url_hash'               => $snap['url_hash'],
+				'path'                   => $snap['path'],
+				'rendered_title'         => $snap['title'],
+				'rendered_h1'            => $snap['h1'],
+				'rendered_meta_desc'     => $snap['meta_desc'],
+				'rendered_json_ld_count' => (int) $snap['json_ld_count'],
+				'rendered_text_len'      => (int) $snap['text_len'],
+				'rendered_links_count'   => (int) $snap['links_count'],
+				'analyzed_at'            => current_time( 'mysql', true ),
+			], $result ) );
+			$processed++;
+		}
+
+		if ( $processed > 0 ) {
+			SEOB_JsGap_ScanRunner::record_metrics();
+		}
+
+		$analyzed  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$result_table}" );
+		$remaining = max( 0, $total - $analyzed );
+		$percent   = (int) round( ( $analyzed / $total ) * 100 );
+
 		wp_send_json_success( [
-			'running'  => $running,
-			'total'    => $total,
-			'analyzed' => $analyzed,
-			'pending'  => max( 0, $total - $analyzed ),
-			'percent'  => $percent,
-			'phase'    => $phase,
+			'processed' => $processed,
+			'total'     => $total,
+			'analyzed'  => $analyzed,
+			'remaining' => $remaining,
+			'percent'   => min( 100, $percent ),
+			'done'      => $remaining === 0,
 		] );
 	}
 

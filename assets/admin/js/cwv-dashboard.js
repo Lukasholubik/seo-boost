@@ -202,13 +202,29 @@
     if (runAggBtn) {
       runAggBtn.addEventListener('click', function () {
         runAggBtn.disabled = true;
-        runAggBtn.textContent = 'Plánuji…';
-        ajax('seob_cwv_run_aggregation', {}, function (d) {
-          runAggBtn.disabled = false;
-          runAggBtn.textContent = '▶ Spustit agregaci nyní';
-          var msg = document.getElementById('seob-cwv-agg-msg');
-          if (msg) { msg.textContent = d.message; msg.style.display = 'inline'; setTimeout(function () { msg.style.display = 'none'; loadChart(); loadWorstUrls(); }, 5000); }
-        });
+        runAggBtn.textContent = 'Agregace probíhá…';
+        var msg = document.getElementById('seob-cwv-agg-msg');
+        if (msg) { msg.textContent = 'Zpracovávám data…'; msg.style.display = 'inline'; msg.style.color = '#555'; }
+
+        var body = new URLSearchParams({ action: 'seob_cwv_run_aggregation', nonce: seobData.nonce });
+        fetch(seobData.ajaxUrl, { method: 'POST', body: body })
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            runAggBtn.disabled = false;
+            runAggBtn.textContent = '▶ Spustit agregaci nyní';
+            if (res.success) {
+              if (msg) { msg.textContent = res.data.message; msg.style.color = '#1a7f37'; setTimeout(function () { msg.style.display = 'none'; }, 5000); }
+              loadChart();
+              loadWorstUrls();
+            } else {
+              if (msg) { msg.textContent = 'Chyba: ' + ((res.data && res.data.message) || 'Neznámá chyba.'); msg.style.color = '#cf222e'; }
+            }
+          })
+          .catch(function () {
+            runAggBtn.disabled = false;
+            runAggBtn.textContent = '▶ Spustit agregaci nyní';
+            if (msg) { msg.textContent = 'Chyba spojení.'; msg.style.color = '#cf222e'; }
+          });
       });
     }
 
