@@ -7,8 +7,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class SEOB_JsGap_ScanRunner {
 
-	const CRON_HOOK  = 'seob_js_gap_scan';
-	const BATCH_SIZE = 10;
+	const CRON_HOOK        = 'seob_js_gap_scan';
+	const BATCH_SIZE       = 10;
+	const RUNNING_TRANSIENT = 'seob_jsgap_running';
 
 	public static function schedule(): void {
 		if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
@@ -26,6 +27,7 @@ class SEOB_JsGap_ScanRunner {
 	 * Cron callback – zpracuje dávku nevyanalyzovaných snapshotů.
 	 */
 	public static function run_batch(): void {
+		set_transient( self::RUNNING_TRANSIENT, true, 5 * MINUTE_IN_SECONDS );
 		global $wpdb;
 		$snap_table   = SEOB_Database::js_gap_snapshots_table();
 		$result_table = SEOB_Database::js_gap_results_table();
@@ -65,7 +67,7 @@ class SEOB_JsGap_ScanRunner {
 			) );
 		}
 
-		// Zapsat metriky
+		delete_transient( self::RUNNING_TRANSIENT );
 		self::record_metrics();
 	}
 

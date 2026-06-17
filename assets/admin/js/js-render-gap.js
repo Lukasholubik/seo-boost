@@ -4,6 +4,7 @@
 
   var currentFilter = 'all';
   var currentPage   = 1;
+  var pollTimer     = null;
 
   function ajax(action, data, ok, fail) {
     $.post(seobData.ajaxUrl, Object.assign({ action: action, nonce: seobData.nonce }, data))
@@ -19,6 +20,47 @@
   function showSuccess(msg) {
     $('#seob-jsgap-success').html('<p>' + msg + '</p>').show();
     setTimeout(function () { $('#seob-jsgap-success').hide(); }, 5000);
+  }
+
+  // ── Progress bar ──────────────────────────────────────────────────────────
+
+  function startPolling() {
+    stopPolling();
+    showProgress(0, 'Inicializace analýzy…');
+    pollTimer = setInterval(pollStatus, 2000);
+  }
+
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function pollStatus() {
+    ajax('seob_jsgap_scan_status', {}, function (d) {
+      var label = d.phase;
+      if (d.total > 0) {
+        label += ' (' + d.analyzed + ' / ' + d.total + ' URL)';
+      }
+      showProgress(d.percent, label);
+
+      if (!d.running) {
+        stopPolling();
+        setTimeout(function () {
+          $('#seob-jsgap-progress-wrap').fadeOut(400);
+          loadStats();
+          loadResults();
+          if (d.analyzed > 0) {
+            showSuccess('Analýza dokončena – zkontrolujte výsledky níže.');
+          }
+        }, 800);
+      }
+    });
+  }
+
+  function showProgress(percent, text) {
+    $('#seob-jsgap-progress-wrap').show();
+    $('#seob-jsgap-progress-bar').css('width', percent + '%');
+    $('#seob-jsgap-progress-pct').text(percent + ' %');
+    $('#seob-jsgap-progress-text').text(text || '');
   }
 
   // ── Statistiky ────────────────────────────────────────────────────────────
@@ -38,12 +80,11 @@
 
   $('#seob-jsgap-run-btn').on('click', function () {
     var btn = $(this).prop('disabled', true).text('Plánuji…');
-    ajax('seob_jsgap_run_scan', {}, function (d) {
-      btn.prop('disabled', false).text('▶ Spustit analýzu (na pozadí)');
-      showSuccess(d.message);
-      setTimeout(function () { loadStats(); loadResults(); }, 5000);
+    ajax('seob_jsgap_run_scan', {}, function () {
+      btn.prop('disabled', false).text('▶ Spustit analýzu');
+      startPolling();
     }, function (d) {
-      btn.prop('disabled', false).text('▶ Spustit analýzu (na pozadí)');
+      btn.prop('disabled', false).text('▶ Spustit analýzu');
       showError(d);
     });
   });
@@ -95,8 +136,8 @@
     var tbody = $('<tbody></tbody>');
 
     rows.forEach(function (row) {
-      var sc   = parseInt(row.gap_score, 10);
-      var cls  = scoreClass(sc);
+      var sc     = parseInt(row.gap_score, 10);
+      var cls    = scoreClass(sc);
       var issues = row.issues || [];
 
       var tr = $('<tr></tr>');
@@ -123,7 +164,7 @@
 
   $(document).on('click', '.seob-jsgap-analyze', function () {
     var btn  = $(this).prop('disabled', true).text('…');
-    var hash = btn.data('hash');
+    var hash = $(this).data('hash');
     ajax('seob_jsgap_analyze_one', { url_hash: hash }, function () {
       btn.prop('disabled', false).text('Znovu');
       showSuccess('Analýza dokončena.');
@@ -163,5 +204,13 @@
 
   loadStats();
   loadResults();
+
+  // Pokud analýza právě běží (např. po reload stránky), navázat na polling
+  ajax('seob_jsgap_scan_status', {}, function (d) {
+    if (d.running) {
+      showProgress(d.percent, d.phase + (d.total > 0 ? ' (' + d.analyzed + ' / ' + d.total + ' URL)' : ''));
+      startPolling();
+    }
+  });
 
 }(jQuery));

@@ -8,10 +8,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class SEOB_JsGap_Ajax {
 
 	public function __construct() {
-		add_action( 'wp_ajax_seob_jsgap_stats',       [ $this, 'ajax_stats' ] );
-		add_action( 'wp_ajax_seob_jsgap_results',     [ $this, 'ajax_results' ] );
-		add_action( 'wp_ajax_seob_jsgap_analyze_one', [ $this, 'ajax_analyze_one' ] );
-		add_action( 'wp_ajax_seob_jsgap_run_scan',    [ $this, 'ajax_run_scan' ] );
+		add_action( 'wp_ajax_seob_jsgap_stats',        [ $this, 'ajax_stats' ] );
+		add_action( 'wp_ajax_seob_jsgap_results',      [ $this, 'ajax_results' ] );
+		add_action( 'wp_ajax_seob_jsgap_analyze_one',  [ $this, 'ajax_analyze_one' ] );
+		add_action( 'wp_ajax_seob_jsgap_run_scan',     [ $this, 'ajax_run_scan' ] );
+		add_action( 'wp_ajax_seob_jsgap_scan_status',  [ $this, 'ajax_scan_status' ] );
 	}
 
 	// ── Statistiky ────────────────────────────────────────────────────────────
@@ -113,10 +114,42 @@ class SEOB_JsGap_Ajax {
 
 	public function ajax_run_scan(): void {
 		$this->auth();
-		// Naplánovat okamžité spuštění přes cron
+		set_transient( SEOB_JsGap_ScanRunner::RUNNING_TRANSIENT, true, 60 );
 		wp_schedule_single_event( time() + 3, SEOB_JsGap_ScanRunner::CRON_HOOK );
 		spawn_cron();
-		wp_send_json_success( [ 'message' => 'Analýza zaplanovaná na pozadí. Výsledky se zobrazí za chvíli.' ] );
+		wp_send_json_success( [ 'message' => 'Analýza naplánována.' ] );
+	}
+
+	// ── Stav průběhu scanu ────────────────────────────────────────────────────
+
+	public function ajax_scan_status(): void {
+		$this->auth();
+		global $wpdb;
+
+		$snap_table   = SEOB_Database::js_gap_snapshots_table();
+		$result_table = SEOB_Database::js_gap_results_table();
+
+		$total    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$snap_table}" );
+		$analyzed = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$result_table}" );
+		$running  = (bool) get_transient( SEOB_JsGap_ScanRunner::RUNNING_TRANSIENT );
+		$percent  = $total > 0 ? min( 100, (int) round( ( $analyzed / $total ) * 100 ) ) : 0;
+
+		if ( $running ) {
+			$phase = 'Stahování raw HTML a porovnání s rendered DOM…';
+		} elseif ( $analyzed > 0 ) {
+			$phase = 'Analýza dokončena';
+		} else {
+			$phase = 'Čeká na spuštění';
+		}
+
+		wp_send_json_success( [
+			'running'  => $running,
+			'total'    => $total,
+			'analyzed' => $analyzed,
+			'pending'  => max( 0, $total - $analyzed ),
+			'percent'  => $percent,
+			'phase'    => $phase,
+		] );
 	}
 
 	// ── Auth ──────────────────────────────────────────────────────────────────

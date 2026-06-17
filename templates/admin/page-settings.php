@@ -71,6 +71,21 @@ $pagespeed = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
 						<input type="checkbox" name="modules_local_seo" value="1" <?php checked( ! empty( $general['modules']['local-seo'] ) ); ?>>
 						<?php esc_html_e( 'Local SEO CZ (LocalBusiness JSON-LD schéma s IČO/DIČ, GPS, otevírací dobou + NAP scanner)', 'seo-boost' ); ?>
 					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_json_ld" value="1" <?php checked( ! empty( $general['modules']['json-ld'] ) ); ?>>
+						<?php esc_html_e( 'JSON-LD Validátor (extrahuje a validuje strukturovaná data, detekuje duplicitní schémata)', 'seo-boost' ); ?>
+					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_cwv_rum" value="1" <?php checked( ! empty( $general['modules']['cwv-rum'] ) ); ?>>
+						<?php esc_html_e( 'Core Web Vitals (RUM) – měří LCP, INP, CLS od reálných návštěvníků, anonymní beacon bez cookies', 'seo-boost' ); ?>
+					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_js_render_gap" value="1" <?php checked( ! empty( $general['modules']['js-render-gap'] ) ); ?>>
+						<?php esc_html_e( 'JS Render Gap – detekuje obsah skrytý Googlu bez JS renderování (porovnání raw HTML vs. rendered DOM)', 'seo-boost' ); ?>
+					</label>
 				</td>
 			</tr>
 			<tr>

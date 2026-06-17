@@ -39,6 +39,9 @@ class SEOB_Settings_Ajax {
 				'internal-links' => $this->bool_field( 'modules_internal_links' ),
 				'hreflang'       => $this->bool_field( 'modules_hreflang' ),
 				'local-seo'      => $this->bool_field( 'modules_local_seo' ),
+				'json-ld'        => $this->bool_field( 'modules_json_ld' ),
+				'cwv-rum'        => $this->bool_field( 'modules_cwv_rum' ),
+				'js-render-gap'  => $this->bool_field( 'modules_js_render_gap' ),
 			],
 		];
 
