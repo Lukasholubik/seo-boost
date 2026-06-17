@@ -253,7 +253,7 @@ class SEOB_Admin {
 		}
 
 		if ( str_ends_with( $hook, '_page_seob-cwv' ) ) {
-			// Chart.js pro CWV dashboard
+			// Chart.js + annotation plugin pro CWV dashboard
 			wp_enqueue_script(
 				'chartjs',
 				'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
@@ -261,10 +261,18 @@ class SEOB_Admin {
 				'4.4.0',
 				true
 			);
+			// chartjs-plugin-annotation přidá vodorovné hranicové linie (Dobrý/Špatný)
+			wp_enqueue_script(
+				'chartjs-annotation',
+				'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js',
+				[ 'chartjs' ],
+				'3.0.1',
+				true
+			);
 			wp_enqueue_script(
 				'seob-cwv-dashboard',
 				SEOB_PLUGIN_URL . 'assets/admin/js/cwv-dashboard.js',
-				[ 'chartjs' ],
+				[ 'chartjs', 'chartjs-annotation' ],
 				SEOB_VERSION,
 				true
 			);
