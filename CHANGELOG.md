@@ -3,6 +3,15 @@
 Všechny výrazné změny jsou dokumentovány v tomto souboru.
 Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
 
+## [0.9.1] – 2026-06-22
+
+### Bezpečnost (kompletní penetrační audit 96 PHP souborů)
+- **`sslverify` podmíněné podle prostředí** – nová `SEOB_Settings::is_local_environment()` detekuje `.local`, `localhost`, privátní IP. Na produkci se SSL certifikáty ověřují (dříve bylo `sslverify=false` globálně). Přepis možný přes `define('SEOB_SSLVERIFY', true/false)` v `wp-config.php`.
+- **Cookie filtering v loopback requestech** – `Audit/Scanner.php` nyní předává pouze `wordpress_*` auth cookies (dříve všechny `$_COOKIE` včetně tracking cookies třetích stran)
+- **Globální per-IP rate limit v JS Render Gap beaconu** – `BeaconReceiver.php` přidán limit 200 snapshotů/hod per IP (brání zálavě transienty přes různé URL)
+- **SSRF ochrana AI endpointu** – `OpenAiCompatibleProvider.php` blokuje non-http(s) protokoly a privátní IP rozsahy (AWS metadata 169.254.x.x, RFC 1918)
+- Potvrzeno OK: ABSPATH ve všech 96 souborech, nonce+capability checks všechny AJAX handlery, `$wpdb->prepare()` všude kde jsou user data, output escaping v templates, žádné `eval()`/`exec()`/`unserialize()` na user datech
+
 ## [0.9.0] – 2026-06-17
 
 ### Přidáno
