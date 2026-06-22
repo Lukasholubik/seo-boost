@@ -28,4 +28,84 @@ class SEOB_Database {
 		global $wpdb;
 		return $wpdb->prefix . 'seo_booster_links';
 	}
+
+	public static function metrics_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_metrics';
+	}
+
+	public static function facet_rules_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_facet_rules';
+	}
+
+	public static function facet_urls_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_facet_urls';
+	}
+
+	public static function facet_signals_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_facet_signals';
+	}
+
+	public static function psi_runs_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_psi_runs';
+	}
+
+	public static function psi_results_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_psi_results';
+	}
+
+	public static function psi_summary_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_psi_summary';
+	}
+
+	public static function internal_links_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_internal_links';
+	}
+
+	public static function link_suggestions_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_link_suggestions';
+	}
+
+	public static function link_scans_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_link_scans';
+	}
+
+	public static function hreflang_groups_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_hreflang_groups';
+	}
+
+	public static function hreflang_members_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_hreflang_members';
+	}
+
+	public static function cwv_raw_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_cwv_raw';
+	}
+
+	public static function cwv_daily_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_cwv_daily';
+	}
+
+	public static function js_gap_snapshots_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_js_gap_snapshots';
+	}
+
+	public static function js_gap_results_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'seo_booster_js_gap_results';
+	}
 }

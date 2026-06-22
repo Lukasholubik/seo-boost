@@ -1,5 +1,765 @@
 /*
- * Vygenerovaný soubor – NEUPRAVOVAT RUČNĚ.
- * Spusťte `npm install && npm run build:css` ve složce pluginu pro vygenerování
- * z Tailwind zdroje (assets/src/admin.css).
+ * Dočasné ruční CSS pro Audit Dashboard a Redirect Manager.
+ * Tailwind build (npm run build:css) zatím nebyl spuštěn (npm není dostupné
+ * ve vývojovém sandboxu) – tyto styly nahraď/doplň po prvním buildu.
  */
+
+.seob-wrap .seob-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin: 16px 0;
+	padding: 10px 14px;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+}
+
+.seob-wrap .seob-scan-meta {
+	color: #646970;
+	font-size: 13px;
+}
+
+.seob-wrap .seob-scan-history-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+}
+
+.seob-wrap .seob-scan-history-label select {
+	max-width: 320px;
+}
+
+.seob-wrap .seob-progress {
+	margin: 12px 0;
+}
+
+.seob-wrap .seob-progress-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.seob-wrap .seob-progress-bar {
+	flex: 1;
+	max-width: 400px;
+	height: 10px;
+	background: #e0e0e0;
+	border-radius: 5px;
+	overflow: hidden;
+}
+
+.seob-wrap .seob-progress-fill {
+	height: 100%;
+	width: 0;
+	background: #2271b1;
+	transition: width 0.3s ease;
+}
+
+.seob-wrap .seob-progress-fill.is-busy {
+	background-image: linear-gradient(
+		135deg,
+		rgba(255, 255, 255, 0.35) 25%,
+		transparent 25%,
+		transparent 50%,
+		rgba(255, 255, 255, 0.35) 50%,
+		rgba(255, 255, 255, 0.35) 75%,
+		transparent 75%,
+		transparent
+	);
+	background-size: 24px 24px;
+	animation: seob-progress-stripes 1s linear infinite;
+}
+
+@keyframes seob-progress-stripes {
+	from { background-position: 0 0; }
+	to { background-position: 24px 0; }
+}
+
+.seob-wrap .seob-spinner {
+	display: none;
+	width: 14px;
+	height: 14px;
+	border: 2px solid #c3c4c7;
+	border-top-color: #2271b1;
+	border-radius: 50%;
+	flex-shrink: 0;
+	animation: seob-spin 0.8s linear infinite;
+}
+
+.seob-wrap .seob-spinner.is-active {
+	display: inline-block;
+}
+
+@keyframes seob-spin {
+	to { transform: rotate(360deg); }
+}
+
+.seob-wrap .seob-progress-text {
+	font-size: 12px;
+	color: #646970;
+	white-space: nowrap;
+}
+
+.seob-wrap .seob-progress-status {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: #646970;
+	font-style: italic;
+}
+
+.seob-wrap .seob-psi-delta {
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.seob-wrap .seob-psi-delta.is-up {
+	color: #00a32a;
+}
+
+.seob-wrap .seob-psi-delta.is-down {
+	color: #d63638;
+}
+
+.seob-wrap .seob-psi-delta.is-flat {
+	color: #646970;
+}
+
+.seob-wrap .seob-summary {
+	margin: 16px 0;
+}
+
+.seob-wrap .seob-gsc-notice {
+	margin: 0 0 16px;
+}
+
+.seob-audit-table.seob-gsc-hidden .seob-col-gsc {
+	display: none;
+}
+
+.seob-wrap .seob-score-overview {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px 24px;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 12px 16px;
+}
+
+.seob-wrap .seob-score-total {
+	font-size: 14px;
+	color: #646970;
+}
+
+.seob-wrap .seob-score-total strong {
+	font-size: 22px;
+	color: #1d2327;
+	margin-left: 4px;
+}
+
+.seob-wrap .seob-score-counts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.seob-wrap .seob-score-counts span {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: #f0f0f1;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.seob-wrap .seob-count-critical { color: #d63638; }
+.seob-wrap .seob-count-warning { color: #b45f06; }
+.seob-wrap .seob-count-recommendation { color: #2271b1; }
+.seob-wrap .seob-count-resolved { color: #00a32a; background: #edfaef; font-weight: 600; }
+
+.seob-wrap .seob-resolved-badge {
+	display: inline-block;
+	color: #00a32a;
+	font-weight: 600;
+	cursor: help;
+}
+
+.seob-wrap .seob-filters {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.seob-wrap .seob-filters input[type="search"] {
+	min-width: 240px;
+}
+
+/* Export reportu (PDF) */
+.seob-wrap #seob-report-summary {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.seob-wrap .seob-summary-row {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+	margin: 16px 0;
+}
+
+.seob-wrap .seob-summary-box {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 10px 16px;
+	min-width: 120px;
+	text-align: center;
+}
+
+.seob-wrap .seob-summary-value {
+	font-size: 20px;
+	font-weight: 600;
+}
+
+.seob-wrap .seob-summary-label {
+	font-size: 12px;
+	color: #646970;
+}
+
+.seob-wrap .seob-psi-overall {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-left: 4px solid #2271b1;
+	border-radius: 4px;
+	padding: 10px 16px;
+	margin-bottom: 16px;
+}
+
+.seob-wrap .seob-pdf-page {
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 10px 14px;
+	margin-bottom: 10px;
+	background: #fff;
+}
+
+.seob-wrap .seob-pdf-page-title {
+	font-weight: 600;
+}
+
+.seob-wrap .seob-pdf-page-url {
+	color: #2271b1;
+	font-size: 12px;
+	margin-bottom: 6px;
+}
+
+.seob-wrap .seob-pdf-issue {
+	border-left: 3px solid #dcdcde;
+	padding-left: 8px;
+	margin-top: 6px;
+}
+
+.seob-wrap .seob-pdf-issue-title {
+	font-weight: 600;
+}
+
+.seob-wrap .seob-pdf-issue-text {
+	font-size: 12px;
+	color: #3c434a;
+}
+
+.seob-wrap .seob-table th,
+.seob-wrap .seob-table td {
+	vertical-align: middle;
+	padding: 12px;
+}
+
+.seob-wrap .seob-table thead th {
+	font-weight: 600;
+	border-bottom: 2px solid #c3c4c7;
+}
+
+.seob-wrap .seob-audit-table th,
+.seob-wrap .seob-audit-table td {
+	padding: 5px 8px;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.seob-wrap .seob-audit-table thead th {
+	padding: 7px 8px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #646970;
+	background: #f6f7f7;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.seob-wrap .seob-audit-table .seob-col-score,
+.seob-wrap .seob-audit-table .seob-col-title,
+.seob-wrap .seob-audit-table .seob-col-description,
+.seob-wrap .seob-audit-table .seob-col-h1,
+.seob-wrap .seob-audit-table .seob-col-alt,
+.seob-wrap .seob-audit-table .seob-col-schema,
+.seob-wrap .seob-audit-table .seob-col-thin,
+.seob-wrap .seob-audit-table .seob-col-resolved,
+.seob-wrap .seob-audit-table .seob-col-gsc,
+.seob-wrap .seob-audit-table .seob-col-action {
+	white-space: nowrap;
+	width: 1%;
+}
+
+.seob-wrap .seob-audit-table .seob-col-url {
+	width: auto;
+}
+
+.seob-wrap .seob-audit-table .seob-col-action .button {
+	padding: 0 8px;
+	min-height: 26px;
+	line-height: 24px;
+}
+
+.seob-wrap .seob-audit-table .seob-result-row {
+	transition: background-color 0.1s ease;
+}
+
+.seob-wrap .seob-table .seob-col-score,
+.seob-wrap .seob-table .seob-col-title,
+.seob-wrap .seob-table .seob-col-description,
+.seob-wrap .seob-table .seob-col-h1,
+.seob-wrap .seob-table .seob-col-alt,
+.seob-wrap .seob-table .seob-col-schema,
+.seob-wrap .seob-table .seob-col-thin,
+.seob-wrap .seob-table .seob-col-resolved,
+.seob-wrap .seob-table .seob-col-gsc,
+.seob-wrap .seob-table .seob-col-action {
+	text-align: center;
+}
+
+.seob-wrap .seob-table .seob-result-row {
+	background: #fff;
+	border-top: 1px solid #dcdcde;
+}
+
+.seob-wrap .seob-table .seob-result-row.seob-row-alt {
+	background: #f6f7f7;
+}
+
+.seob-wrap .seob-table .seob-result-row:hover {
+	background: #f0f6fc;
+}
+
+.seob-wrap .seob-table .seob-result-row:first-child {
+	border-top: none;
+}
+
+.seob-wrap .seob-table .seob-edit-row td {
+	padding-top: 0;
+	border-top: none;
+}
+
+.seob-wrap .seob-table .seob-edit-row.seob-row-alt td {
+	background: #f6f7f7;
+}
+
+.seob-wrap .seob-table .seob-edit-row:not([hidden]) td {
+	padding-bottom: 16px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.seob-wrap .seob-col-url {
+	text-align: left;
+}
+
+.seob-wrap .seob-col-url a {
+	word-break: break-all;
+	font-weight: 600;
+}
+
+.seob-wrap .seob-ai-queue-table .seob-aiq-current,
+.seob-wrap .seob-ai-queue-table .seob-aiq-suggestion {
+	max-width: 320px;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.seob-wrap .seob-ai-queue-table .seob-aiq-suggestion {
+	font-weight: 600;
+}
+
+.seob-wrap .seob-ai-queue-table .seob-aiq-actions {
+	white-space: nowrap;
+}
+
+.seob-wrap .seob-ai-suggest-btn {
+	margin-left: 6px;
+}
+
+.seob-wrap .seob-score-badge {
+	display: inline-block;
+	min-width: 36px;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-weight: 600;
+	font-size: 12px;
+	text-align: center;
+	color: #fff;
+}
+
+.seob-wrap .seob-score-good { background: #00a32a; }
+.seob-wrap .seob-score-mid { background: #dba617; }
+.seob-wrap .seob-score-bad { background: #d63638; }
+
+.seob-wrap .seob-score-delta {
+	display: inline-block;
+	margin-left: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.seob-wrap .seob-score-delta-up { color: #00a32a; }
+.seob-wrap .seob-score-delta-down { color: #d63638; }
+.seob-wrap .seob-score-delta-flat { color: #646970; }
+
+.seob-wrap .seob-status-icon.seob-ok { color: #00a32a; }
+.seob-wrap .seob-status-icon.seob-bad { color: #d63638; }
+.seob-wrap .seob-status-icon.seob-warn { color: #dba617; }
+
+.seob-wrap .seob-status-icon {
+	font-size: 18px;
+	vertical-align: middle;
+}
+
+.seob-wrap .seob-status-icon[title] {
+	cursor: help;
+	border-bottom: 1px dotted currentColor;
+}
+
+.seob-wrap .seob-empty-groups {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 16px;
+	color: #646970;
+}
+
+.seob-wrap .seob-audit-group {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	margin-bottom: 10px;
+}
+
+.seob-wrap .seob-group-toggle {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 12px 16px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	text-align: left;
+	font-size: 14px;
+}
+
+.seob-wrap .seob-group-toggle:hover {
+	background: #f6f7f7;
+}
+
+.seob-wrap .seob-group-arrow {
+	display: inline-block;
+	transition: transform 0.1s ease;
+	color: #646970;
+}
+
+.seob-wrap .seob-group-toggle.is-expanded .seob-group-arrow {
+	transform: rotate( 90deg );
+}
+
+.seob-wrap .seob-group-title {
+	font-weight: 600;
+}
+
+.seob-wrap .seob-group-count {
+	color: #646970;
+	font-size: 12px;
+}
+
+.seob-wrap .seob-group-score-label {
+	color: #646970;
+	font-size: 12px;
+}
+
+.seob-wrap .seob-group-counts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin-left: auto;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.seob-wrap .seob-group-gsc {
+	color: #646970;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.seob-wrap .seob-group-body {
+	border-top: 1px solid #dcdcde;
+}
+
+.seob-wrap .seob-group-body .seob-audit-table {
+	margin: 0;
+}
+
+.seob-wrap .seob-edit-panel {
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 16px;
+}
+
+.seob-wrap .seob-field {
+	margin-bottom: 12px;
+}
+
+.seob-wrap .seob-field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.seob-wrap .seob-field input[type="text"],
+.seob-wrap .seob-field textarea {
+	width: 100%;
+	max-width: 600px;
+}
+
+.seob-wrap .seob-field select {
+	max-width: 320px;
+}
+
+.seob-wrap .seob-schema-source {
+	margin: 4px 0 0;
+	font-style: italic;
+}
+
+.seob-wrap .seob-pixel-meter {
+	display: inline-block;
+	width: 200px;
+	height: 6px;
+	background: #e0e0e0;
+	border-radius: 3px;
+	overflow: hidden;
+	margin-top: 4px;
+	vertical-align: middle;
+}
+
+.seob-wrap .seob-pixel-fill {
+	display: block;
+	height: 100%;
+	background: #00a32a;
+}
+
+.seob-wrap .seob-pixel-fill.seob-pixel-over {
+	background: #d63638;
+}
+
+.seob-wrap .seob-pixel-label {
+	margin-left: 8px;
+	font-size: 12px;
+	color: #646970;
+}
+
+.seob-wrap .seob-serp-preview {
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 4px;
+	padding: 12px;
+	margin: 12px 0;
+	max-width: 600px;
+	font-family: arial, sans-serif;
+}
+
+.seob-wrap .seob-serp-title {
+	color: #1a0dab;
+	font-size: 18px;
+	line-height: 1.3;
+}
+
+.seob-wrap .seob-serp-url {
+	color: #006621;
+	font-size: 13px;
+	margin: 2px 0;
+}
+
+.seob-wrap .seob-serp-description {
+	color: #545454;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.seob-wrap .seob-issue-list ul {
+	margin: 8px 0;
+	padding-left: 20px;
+}
+
+.seob-wrap .seob-issue-critical { color: #d63638; }
+.seob-wrap .seob-issue-warning { color: #dba617; }
+.seob-wrap .seob-issue-recommendation { color: #2271b1; }
+
+.seob-wrap .seob-gsc-queries {
+	margin: 12px 0;
+}
+
+.seob-wrap .seob-gsc-queries h4 {
+	margin: 0 0 6px;
+}
+
+.seob-wrap .seob-gsc-queries-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.seob-wrap .seob-gsc-queries-table th,
+.seob-wrap .seob-gsc-queries-table td {
+	text-align: left;
+	padding: 4px 8px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.seob-wrap .seob-gsc-queries-table th:not(:first-child),
+.seob-wrap .seob-gsc-queries-table td:not(:first-child) {
+	text-align: right;
+}
+
+.seob-wrap .seob-edit-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 10px;
+}
+
+.seob-wrap .seob-save-status {
+	font-size: 12px;
+	color: #646970;
+}
+
+.seob-wrap .seob-schema-help {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 10px 14px;
+	margin: 12px 0 20px;
+}
+
+.seob-wrap .seob-schema-help summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.seob-wrap .seob-schema-help-body {
+	margin-top: 10px;
+}
+
+.seob-wrap .seob-type-info {
+	margin-left: 4px;
+	color: #787c82;
+	cursor: help;
+	vertical-align: middle;
+}
+
+.seob-wrap .seob-type-info:hover {
+	color: #2271b1;
+}
+
+.seob-wrap .seob-posttype-select,
+.seob-wrap .seob-schema-cat-select {
+	min-width: 260px;
+	max-width: 100%;
+}
+
+.seob-wrap .seob-table td .button + .button {
+	margin-left: 6px;
+}
+
+.seob-wrap .seob-table .seob-posttype-reset,
+.seob-wrap .seob-table .seob-schema-cat-reset {
+	color: #b32d2e;
+	border-color: #b32d2e;
+}
+
+.seob-wrap .seob-table .seob-posttype-reset:hover,
+.seob-wrap .seob-table .seob-schema-cat-reset:hover {
+	color: #fff;
+	background: #b32d2e;
+}
+
+.seob-wrap .seob-smart-table .seob-si-count,
+.seob-wrap .seob-smart-table .seob-si-score {
+	text-align: center;
+}
+
+.seob-wrap .seob-smart-table .seob-si-recommendation {
+	white-space: nowrap;
+}
+
+.seob-wrap .seob-redirect-form {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.seob-wrap .seob-redirect-form input[type="text"] {
+	min-width: 240px;
+}
+
+.seob-wrap .seob-arrow {
+	font-weight: 600;
+}
+
+.seob-wrap .seob-status-list {
+	list-style: none;
+	margin: 0 0 16px;
+}
+
+.seob-wrap .seob-status-list li {
+	margin-bottom: 8px;
+}
+
+.seob-wrap .seob-status-modules td {
+	vertical-align: top;
+}
+
+.seob-wrap .seob-status-trends {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+}
+
+.seob-wrap .seob-status-trend {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 12px 16px;
+}
+
+.seob-wrap .seob-sparkline-svg {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}

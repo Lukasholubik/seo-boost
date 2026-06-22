@@ -1,0 +1,848 @@
+<?php
+/**
+ * Health checky jednotlivých modulů – stav, poslední běh, krok k nápravě.
+ * Integrace do WP Site Health (filtr site_status_tests).
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+class SEOB_Health_Checks {
+
+	/**
+	 * Zaregistruje testy do WP Site Health (Nástroje → Stav webu).
+	 */
+	public static function register(): void {
+		add_filter( 'site_status_tests', [ __CLASS__, 'add_site_health_tests' ] );
+	}
+
+	public static function add_site_health_tests( array $tests ): array {
+		foreach ( SEOB_Module_Manager::get_modules() as $module_id => $module ) {
+			if ( empty( $module['active'] ) ) {
+				continue;
+			}
+
+			$tests['direct'][ 'seob_module_' . $module_id ] = [
+				'label' => sprintf( 'SEO Booster Pro – %s', $module['label'] ),
+				'test'  => static function () use ( $module_id, $module ) {
+					return self::site_health_result( $module_id, $module );
+				},
+			];
+		}
+
+		return $tests;
+	}
+
+	private static function site_health_result( string $module_id, array $module ): array {
+		$checks = self::get_checks( $module_id );
+
+		$worst = 'good';
+		$descriptions = [];
+
+		foreach ( $checks as $check ) {
+			$descriptions[] = '<p>' . esc_html( $check['message'] ) . '</p>';
+
+			if ( 'critical' === $check['status'] ) {
+				$worst = 'critical';
+			} elseif ( 'warning' === $check['status'] && 'critical' !== $worst ) {
+				$worst = 'warning';
+			}
+		}
+
+		$status_map = [
+			'good'     => 'good',
+			'warning'  => 'recommended',
+			'critical' => 'critical',
+		];
+
+		$badge_color = 'critical' === $worst ? 'red' : ( 'warning' === $worst ? 'orange' : 'green' );
+
+		return [
+			'label'       => sprintf( 'SEO Booster Pro – %s je v pořádku', $module['label'] ),
+			'status'      => $status_map[ $worst ],
+			'badge'       => [
+				'label' => 'SEO Booster Pro',
+				'color' => $badge_color,
+			],
+			'description' => implode( '', $descriptions ),
+			'actions'     => '<p><a href="' . esc_url( admin_url( 'admin.php?page=seob-status' ) ) . '">' . esc_html__( 'Zobrazit Stav systému', 'seo-boost' ) . '</a></p>',
+			'test'        => 'seob_module_' . $module_id,
+		];
+	}
+
+	/**
+	 * Vrátí health checky pro daný modul.
+	 *
+	 * @return array<int, array{id:string,label:string,status:string,message:string,action_label:?string,action_url:?string}>
+	 */
+	public static function get_checks( string $module_id ): array {
+		switch ( $module_id ) {
+			case 'audit':
+				return self::audit_checks();
+			case 'redirects':
+				return self::redirects_checks();
+			case 'pdf':
+				return self::pdf_checks();
+			case 'smart-indexing':
+				return self::smart_indexing_checks();
+			case 'gsc-insights':
+				return self::gsc_checks();
+			case 'ai-queue':
+				return self::ai_queue_checks();
+			case 'pagespeed':
+				return self::pagespeed_checks();
+			case 'internal-links':
+				return self::internal_links_checks();
+			case 'hreflang':
+				return self::hreflang_checks();
+			case 'local-seo':
+				return self::local_seo_checks();
+			case 'json-ld':
+				return self::json_ld_checks();
+			case 'http-headers':
+				return self::http_headers_checks();
+			case 'content-decay':
+				return self::content_decay_checks();
+			default:
+				return [];
+		}
+	}
+
+	/**
+	 * Obecné informační kontroly (nezávislé na modulech).
+	 */
+	public static function get_general_checks(): array {
+		$rank_math = SEOB_Module_Manager::is_rank_math_active();
+
+		return [
+			[
+				'id'           => 'rank_math_detected',
+				'label'        => 'Rank Math',
+				'status'       => 'good',
+				'message'      => $rank_math
+					? 'Rank Math je aktivní – schéma a meta data se kombinují s jeho nastavením.'
+					: 'Rank Math není aktivní – výchozí hodnoty schématu od Rank Math se nepoužívají.',
+				'action_label' => null,
+				'action_url'   => null,
+			],
+		];
+	}
+
+	private static function audit_checks(): array {
+		global $wpdb;
+
+		$checks          = [];
+		$scan_runs_table = SEOB_Database::scan_runs_table();
+
+		$last_done = $wpdb->get_row(
+			"SELECT finished_at FROM {$scan_runs_table} WHERE status = 'done' ORDER BY finished_at DESC LIMIT 1" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+
+		if ( null === $last_done ) {
+			$checks[] = [
+				'id'           => 'audit_last_scan',
+				'label'        => 'Poslední scan',
+				'status'       => 'critical',
+				'message'      => 'Zatím nebyl dokončen žádný scan.',
+				'action_label' => 'Spustit scan',
+				'action_url'   => admin_url( 'admin.php?page=seo-boost' ),
+			];
+		} else {
+			$age_days = ( time() - strtotime( $last_done->finished_at ) ) / DAY_IN_SECONDS;
+
+			if ( $age_days < 7 ) {
+				$status  = 'good';
+				$message = sprintf( 'Poslední scan dokončen %s.', mysql2date( 'j. n. Y H:i', $last_done->finished_at ) );
+			} elseif ( $age_days < 30 ) {
+				$status  = 'warning';
+				$message = sprintf( 'Poslední scan je starší než týden (%s).', mysql2date( 'j. n. Y H:i', $last_done->finished_at ) );
+			} else {
+				$status  = 'critical';
+				$message = sprintf( 'Poslední scan je starší než měsíc (%s).', mysql2date( 'j. n. Y H:i', $last_done->finished_at ) );
+			}
+
+			$checks[] = [
+				'id'           => 'audit_last_scan',
+				'label'        => 'Poslední scan',
+				'status'       => $status,
+				'message'      => $message,
+				'action_label' => 'good' === $status ? null : 'Spustit nový scan',
+				'action_url'   => 'good' === $status ? null : admin_url( 'admin.php?page=seo-boost' ),
+			];
+		}
+
+		$stuck = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, started_at FROM {$scan_runs_table} WHERE status = 'running' AND started_at < %s ORDER BY started_at ASC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				gmdate( 'Y-m-d H:i:s', time() - 2 * HOUR_IN_SECONDS )
+			)
+		);
+
+		if ( null !== $stuck ) {
+			$checks[] = [
+				'id'           => 'audit_stuck_scan',
+				'label'        => 'Zaseklý scan',
+				'status'       => 'critical',
+				'message'      => sprintf( 'Scan #%d běží déle než 2 hodiny (od %s) – pravděpodobně se zasekl.', (int) $stuck->id, mysql2date( 'j. n. Y H:i', $stuck->started_at ) ),
+				'action_label' => 'Spustit nový scan',
+				'action_url'   => admin_url( 'admin.php?page=seo-boost' ),
+			];
+		}
+
+		return $checks;
+	}
+
+	private static function redirects_checks(): array {
+		$checks = [];
+
+		$next_cron = wp_next_scheduled( SEOB_Redirect_Manager::CRON_HOOK );
+
+		$checks[] = [
+			'id'           => 'redirects_cron',
+			'label'        => 'Úklid 404 logů (cron)',
+			'status'       => $next_cron ? 'good' : 'critical',
+			'message'      => $next_cron
+				? sprintf( 'Denní úklid starých 404 záznamů je naplánován na %s.', wp_date( 'j. n. Y H:i', $next_cron ) )
+				: 'Denní úklid starých 404 záznamů není naplánován.',
+			'action_label' => $next_cron ? null : 'Otevřít Nastavení',
+			'action_url'   => $next_cron ? null : admin_url( 'admin.php?page=seob-settings' ),
+		];
+
+		$unresolved = SEOB_Metrics::get_latest( 'redirects', 'unresolved_404_count' );
+
+		if ( null === $unresolved ) {
+			$checks[] = [
+				'id'           => 'redirects_unresolved_404',
+				'label'        => 'Nevyřešené 404',
+				'status'       => 'good',
+				'message'      => 'Zatím nebyl spočítán žádný úklid 404 logů.',
+				'action_label' => null,
+				'action_url'   => null,
+			];
+		} else {
+			$checks[] = [
+				'id'           => 'redirects_unresolved_404',
+				'label'        => 'Nevyřešené 404',
+				'status'       => $unresolved > 0 ? 'warning' : 'good',
+				'message'      => $unresolved > 0
+					? sprintf( 'Eviduje se %d nevyřešených 404 stránek.', (int) $unresolved )
+					: 'Žádné nevyřešené 404 stránky.',
+				'action_label' => $unresolved > 0 ? 'Zobrazit přesměrování' : null,
+				'action_url'   => $unresolved > 0 ? admin_url( 'admin.php?page=seob-redirects' ) : null,
+			];
+		}
+
+		return $checks;
+	}
+
+	private static function smart_indexing_checks(): array {
+		global $wpdb;
+
+		$checks   = [];
+		$settings = SEOB_Settings::get( SEOB_Settings::SMART_INDEXING );
+
+		$mapped = '' !== $settings['company_post_type'] || '' !== $settings['category_taxonomy'];
+
+		$checks[] = [
+			'id'           => 'smart_indexing_mapping',
+			'label'        => 'Mapování katalogu',
+			'status'       => $mapped ? 'good' : 'warning',
+			'message'      => $mapped
+				? 'Mapování typu obsahu / taxonomií pro chytrou indexaci je nastaveno.'
+				: 'Není nastaveno mapování (detail firmy / obor / lokalita) – analýza nemá co vyhodnocovat.',
+			'action_label' => $mapped ? null : 'Otevřít Chytrou indexaci',
+			'action_url'   => $mapped ? null : admin_url( 'admin.php?page=seob-smart-indexing' ),
+		];
+
+		$checks[] = [
+			'id'           => 'smart_indexing_mode',
+			'label'        => 'Režim',
+			'status'       => 'dry_run' === $settings['mode'] ? 'warning' : 'good',
+			'message'      => 'dry_run' === $settings['mode']
+				? 'Modul běží v režimu Dry-run – návrhy se zobrazují, ale canonical/noindex se na frontend nepromítají.'
+				: sprintf( 'Modul běží v aktivním režimu (%s) – schválené stránky ovlivňují canonical/robots.', $settings['mode'] ),
+			'action_label' => null,
+			'action_url'   => null,
+		];
+
+		$table     = SEOB_Database::facet_urls_table();
+		$last_scan = $wpdb->get_var( "SELECT MAX(scanned_at) FROM {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+
+		$checks[] = [
+			'id'           => 'smart_indexing_last_scan',
+			'label'        => 'Poslední analýza',
+			'status'       => $last_scan ? 'good' : 'warning',
+			'message'      => $last_scan
+				? sprintf( 'Poslední analýza proběhla %s.', mysql2date( 'j. n. Y H:i', $last_scan ) )
+				: 'Zatím nebyla spuštěna žádná analýza katalogových kombinací.',
+			'action_label' => 'Otevřít Chytrou indexaci',
+			'action_url'   => admin_url( 'admin.php?page=seob-smart-indexing' ),
+		];
+
+		return $checks;
+	}
+
+	private static function gsc_checks(): array {
+		if ( ! SEOB_Module_Manager::is_rank_math_active() ) {
+			return [
+				[
+					'id'           => 'gsc_rank_math_missing',
+					'label'        => 'Rank Math',
+					'status'       => 'critical',
+					'message'      => 'Rank Math nebyl nalezen – Search Console statistiky vyžadují aktivní plugin Rank Math (Free i Pro).',
+					'action_label' => null,
+					'action_url'   => null,
+				],
+			];
+		}
+
+		$summary = SEOB_Gsc_Insights::get_summary();
+
+		if ( null === $summary ) {
+			return [
+				[
+					'id'           => 'gsc_not_connected',
+					'label'        => 'Připojení Search Console',
+					'status'       => 'warning',
+					'message'      => 'Rank Math zatím nemá data ze Search Console (modul Analytics nepřipojen nebo bez dat za posledních 28 dní) – sloupce Search Console v Audit Dashboardu jsou skryté.',
+					'action_label' => 'Připojit Search Console v Rank Math',
+					'action_url'   => admin_url( 'admin.php?page=rank-math-options-general' ),
+				],
+			];
+		}
+
+		return [
+			[
+				'id'           => 'gsc_connected',
+				'label'        => 'Search Console (Rank Math)',
+				'status'       => 'good',
+				'message'      => sprintf(
+					'Za posledních 28 dní: %d zobrazení, %d kliků, CTR %s %%, průměrná pozice %s.',
+					$summary['impressions'],
+					$summary['clicks'],
+					number_format_i18n( $summary['ctr'], 2 ),
+					number_format_i18n( $summary['avg_position'], 1 )
+				),
+				'action_label' => null,
+				'action_url'   => null,
+			],
+		];
+	}
+
+	private static function ai_queue_checks(): array {
+		$settings = SEOB_Settings::get( SEOB_Settings::AI );
+
+		if ( empty( $settings['enabled'] ) || '' === $settings['api_key_enc'] ) {
+			return [
+				[
+					'id'           => 'ai_queue_configured',
+					'label'        => 'AI asistent',
+					'status'       => 'critical',
+					'message'      => 'AI asistent je zapnutý, ale chybí API klíč.',
+					'action_label' => 'Otevřít Nastavení',
+					'action_url'   => admin_url( 'admin.php?page=seob-settings' ),
+				],
+			];
+		}
+
+		$pending = SEOB_AiQueue_Repository::count_by_status( SEOB_AiQueue_Repository::STATUS_PENDING );
+
+		if ( $pending > 0 ) {
+			return [
+				[
+					'id'           => 'ai_queue_pending',
+					'label'        => 'AI fronta',
+					'status'       => 'warning',
+					'message'      => sprintf( '%d návrhů čeká na schválení.', $pending ),
+					'action_label' => 'Zobrazit AI frontu',
+					'action_url'   => admin_url( 'admin.php?page=seob-ai-queue' ),
+				],
+			];
+		}
+
+		return [
+			[
+				'id'           => 'ai_queue_pending',
+				'label'        => 'AI fronta',
+				'status'       => 'good',
+				'message'      => 'Žádné návrhy nečekají na schválení.',
+				'action_label' => null,
+				'action_url'   => null,
+			],
+		];
+	}
+
+	private static function pagespeed_checks(): array {
+		$settings = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
+
+		if ( empty( $settings['enabled'] ) || '' === $settings['api_key_enc'] ) {
+			return [
+				[
+					'id'           => 'pagespeed_configured',
+					'label'        => 'PageSpeed Insights',
+					'status'       => 'critical',
+					'message'      => 'Modul PageSpeed Insights je zapnutý, ale chybí API klíč.',
+					'action_label' => 'Otevřít Nastavení',
+					'action_url'   => admin_url( 'admin.php?page=seob-settings' ),
+				],
+			];
+		}
+
+		$runner  = new SEOB_PageSpeed_ScanRunner();
+		$results = $runner->get_results();
+
+		if ( null === $results ) {
+			return [
+				[
+					'id'           => 'pagespeed_last_run',
+					'label'        => 'Poslední analýza',
+					'status'       => 'good',
+					'message'      => 'Zatím neproběhla žádná analýza PageSpeed Insights.',
+					'action_label' => 'Spustit analýzu',
+					'action_url'   => admin_url( 'admin.php?page=seob-pagespeed' ),
+				],
+			];
+		}
+
+		$seo_scores = [];
+
+		foreach ( $results['groups'] as $group_rows ) {
+			foreach ( $group_rows as $row ) {
+				if ( null !== $row['seo_avg'] ) {
+					$seo_scores[] = (int) $row['seo_avg'];
+				}
+			}
+		}
+
+		$seo_avg = empty( $seo_scores ) ? null : (int) round( array_sum( $seo_scores ) / count( $seo_scores ) );
+
+		return [
+			[
+				'id'           => 'pagespeed_last_run',
+				'label'        => 'Poslední analýza',
+				'status'       => null !== $seo_avg && $seo_avg < 80 ? 'warning' : 'good',
+				'message'      => null !== $seo_avg
+					? sprintf( 'Poslední analýza dokončena %s, průměrné SEO skóre %d/100.', mysql2date( 'j. n. Y H:i', $results['run']['finished_at'] ), $seo_avg )
+					: sprintf( 'Poslední analýza dokončena %s.', mysql2date( 'j. n. Y H:i', $results['run']['finished_at'] ) ),
+				'action_label' => 'Zobrazit PageSpeed Insights',
+				'action_url'   => admin_url( 'admin.php?page=seob-pagespeed' ),
+			],
+		];
+	}
+
+	private static function internal_links_checks(): array {
+		$runner = new SEOB_InternalLinks_ScanRunner();
+		$history = $runner->get_scan_history( 1 );
+
+		if ( empty( $history ) ) {
+			return [
+				[
+					'id'           => 'internal_links_last_scan',
+					'label'        => 'Poslední reindex',
+					'status'       => 'critical',
+					'message'      => 'Zatím nebyl spuštěn žádný reindex interních odkazů.',
+					'action_label' => 'Spustit reindex',
+					'action_url'   => admin_url( 'admin.php?page=seob-internal-links' ),
+				],
+			];
+		}
+
+		$checks   = [];
+		$last_run = $history[0];
+		$age_days = ( time() - strtotime( $last_run['finished_at'] ) ) / DAY_IN_SECONDS;
+
+		if ( $age_days > 30 ) {
+			$checks[] = [
+				'id'           => 'internal_links_last_scan',
+				'label'        => 'Poslední reindex',
+				'status'       => 'warning',
+				'message'      => sprintf( 'Poslední reindex je starší než měsíc (%s).', mysql2date( 'j. n. Y H:i', $last_run['finished_at'] ) ),
+				'action_label' => 'Spustit nový reindex',
+				'action_url'   => admin_url( 'admin.php?page=seob-internal-links' ),
+			];
+		} else {
+			$checks[] = [
+				'id'           => 'internal_links_last_scan',
+				'label'        => 'Poslední reindex',
+				'status'       => 'good',
+				'message'      => sprintf( 'Poslední reindex dokončen %s.', mysql2date( 'j. n. Y H:i', $last_run['finished_at'] ) ),
+				'action_label' => null,
+				'action_url'   => null,
+			];
+		}
+
+		$orphans = SEOB_Metrics::get_latest( 'internal-links', 'orphans_count' );
+
+		if ( null !== $orphans && $orphans > 0 ) {
+			$checks[] = [
+				'id'           => 'internal_links_orphans',
+				'label'        => 'Osamocené stránky',
+				'status'       => 'warning',
+				'message'      => sprintf( '%d osamocených stránek (bez příchozího interního odkazu).', (int) $orphans ),
+				'action_label' => 'Zobrazit Interní prolinkování',
+				'action_url'   => admin_url( 'admin.php?page=seob-internal-links' ),
+			];
+		} else {
+			$checks[] = [
+				'id'           => 'internal_links_orphans',
+				'label'        => 'Osamocené stránky',
+				'status'       => 'good',
+				'message'      => 'Žádné osamocené stránky.',
+				'action_label' => null,
+				'action_url'   => null,
+			];
+		}
+
+		return $checks;
+	}
+
+	private static function hreflang_checks(): array {
+		$checks = [];
+
+		$conflict = \SEOB_Hreflang_Manager::has_conflict();
+
+		if ( $conflict ) {
+			$checks[] = [
+				'id'           => 'hreflang_conflict',
+				'label'        => 'Konflikt pluginů',
+				'status'       => 'critical',
+				'message'      => 'Byl detekován Rank Math Pro nebo Yoast Premium, které již spravují hreflang tagy. Modul Hreflang Manager je automaticky deaktivován, aby nevznikly duplicity.',
+				'action_label' => 'Zobrazit dokumentaci',
+				'action_url'   => admin_url( 'admin.php?page=seob-hreflang' ),
+			];
+
+			return $checks;
+		}
+
+		$multilingual = \SEOB_Hreflang_Manager::detect_multilingual();
+
+		if ( $multilingual['active'] ) {
+			$checks[] = [
+				'id'           => 'hreflang_multilingual',
+				'label'        => 'Vícejazyčný plugin',
+				'status'       => 'warning',
+				'message'      => sprintf( 'Byl detekován %s. Hreflang skupiny v tomto modulu se nekombinují s jeho nastavením – ověřte, zda hreflang tagy neprodukuje i %s (mohly by být duplicitní).', esc_html( $multilingual['plugin'] ), esc_html( $multilingual['plugin'] ) ),
+				'action_label' => 'Otevřít Hreflang Manager',
+				'action_url'   => admin_url( 'admin.php?page=seob-hreflang' ),
+			];
+		}
+
+		global $wpdb;
+		$members_table = SEOB_Database::hreflang_members_table();
+		$group_count   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}seo_booster_hreflang_groups" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$checks[] = [
+			'id'           => 'hreflang_groups',
+			'label'        => 'Skupiny',
+			'status'       => $group_count > 0 ? 'good' : 'warning',
+			'message'      => $group_count > 0
+				? sprintf( 'Nakonfigurováno %d hreflang skupin.', $group_count )
+				: 'Zatím nejsou definovány žádné hreflang skupiny – modul nevkládá žádné tagy.',
+			'action_label' => 0 === $group_count ? 'Otevřít Hreflang Manager' : null,
+			'action_url'   => 0 === $group_count ? admin_url( 'admin.php?page=seob-hreflang' ) : null,
+		];
+
+		return $checks;
+	}
+
+	private static function local_seo_checks(): array {
+		$checks = [];
+		$s      = \SEOB_Settings::get( \SEOB_Settings::LOCAL_SEO );
+
+		if ( \SEOB_LocalSeo_Frontend::has_rank_math_local_seo() ) {
+			$checks[] = [
+				'id'           => 'local_seo_rm_conflict',
+				'label'        => 'Rank Math Pro Local SEO',
+				'status'       => 'critical',
+				'message'      => 'Rank Math Pro Local SEO modul je aktivní a spravuje LocalBusiness schéma automaticky. Tento modul je automaticky deaktivován, aby nevznikly duplicitní JSON-LD bloky.',
+				'action_label' => 'Otevřít Local SEO nastavení',
+				'action_url'   => admin_url( 'admin.php?page=seob-local-seo' ),
+			];
+
+			return $checks;
+		}
+
+		if ( \SEOB_LocalSeo_Frontend::rank_math_free_has_local_business_schema() ) {
+			$checks[] = [
+				'id'           => 'local_seo_rm_free_conflict',
+				'label'        => 'Rank Math Free – LocalBusiness schéma',
+				'status'       => 'warning',
+				'message'      => 'Rank Math Free má nakonfigurované LocalBusiness schéma (Títuly a meta → typ obsahu → Schema). Zkontrolujte, zda na stránce nevznikají duplicitní JSON-LD bloky – ověřte ve zdrojovém kódu stránky (Ctrl+U, hledejte „LocalBusiness").',
+				'action_label' => 'Otevřít Local SEO nastavení',
+				'action_url'   => admin_url( 'admin.php?page=seob-local-seo' ),
+			];
+		}
+
+		if ( empty( $s['business_name'] ) ) {
+			$checks[] = [
+				'id'           => 'local_seo_name_missing',
+				'label'        => 'Název firmy',
+				'status'       => 'critical',
+				'message'      => 'Není vyplněn název firmy – JSON-LD schéma se nevkládá. Vyplňte alespoň název firmy v nastavení modulu.',
+				'action_label' => 'Otevřít Local SEO nastavení',
+				'action_url'   => admin_url( 'admin.php?page=seob-local-seo' ),
+			];
+
+			return $checks;
+		}
+
+		$checks[] = [
+			'id'     => 'local_seo_name',
+			'label'  => 'Název firmy',
+			'status' => 'good',
+			'message'      => sprintf( 'Název firmy nastaven: %s (%s).', esc_html( $s['business_name'] ), esc_html( $s['business_type'] ) ),
+			'action_label' => null,
+			'action_url'   => null,
+		];
+
+		$has_address = ! empty( $s['address_street'] ) || ! empty( $s['address_city'] );
+
+		$checks[] = [
+			'id'           => 'local_seo_address',
+			'label'        => 'Adresa',
+			'status'       => $has_address ? 'good' : 'warning',
+			'message'      => $has_address
+				? sprintf( 'Adresa nastavena: %s, %s %s.', esc_html( $s['address_street'] ), esc_html( $s['address_zip'] ), esc_html( $s['address_city'] ) )
+				: 'Adresa není vyplněna – schéma bude méně kompletní.',
+			'action_label' => $has_address ? null : 'Doplnit adresu',
+			'action_url'   => $has_address ? null : admin_url( 'admin.php?page=seob-local-seo' ),
+		];
+
+		$has_gps = ! empty( $s['lat'] ) && ! empty( $s['lng'] );
+
+		$checks[] = [
+			'id'           => 'local_seo_gps',
+			'label'        => 'GPS souřadnice',
+			'status'       => $has_gps ? 'good' : 'warning',
+			'message'      => $has_gps
+				? sprintf( 'GPS souřadnice nastaveny: %.6f, %.6f.', (float) $s['lat'], (float) $s['lng'] )
+				: 'GPS souřadnice nejsou vyplněny (pole geo bude chybět v JSON-LD).',
+			'action_label' => $has_gps ? null : 'Doplnit GPS',
+			'action_url'   => $has_gps ? null : admin_url( 'admin.php?page=seob-local-seo' ),
+		];
+
+		return $checks;
+	}
+
+	private static function json_ld_checks(): array {
+		$checks = [];
+		$page_url = admin_url( 'admin.php?page=seob-json-ld' );
+
+		// Self-test validátoru
+		$self_test = SEOB_JsonLd_Validator::self_test();
+		$checks[]  = [
+			'id'           => 'json_ld_self_test',
+			'label'        => 'Validátor (self-test)',
+			'status'       => $self_test ? 'good' : 'critical',
+			'message'      => $self_test
+				? 'Validační knihovna funguje správně.'
+				: 'Self-test validátoru selhal – zkontrolujte PHP verzi (min. 8.0) a logy.',
+			'action_label' => $self_test ? null : 'Zobrazit JSON-LD Validátor',
+			'action_url'   => $self_test ? null : $page_url,
+		];
+
+		// Poslední scan
+		$data = SEOB_JsonLd_PageScanner::get_last_results();
+
+		if ( empty( $data['summary'] ) ) {
+			$checks[] = [
+				'id'           => 'json_ld_last_scan',
+				'label'        => 'Poslední scan',
+				'status'       => 'warning',
+				'message'      => 'Žádný scan JSON-LD dosud neproběhl. Spusťte první scan v sekci JSON-LD Validátor.',
+				'action_label' => 'Spustit scan',
+				'action_url'   => $page_url,
+			];
+		} else {
+			$summary  = $data['summary'];
+			$age_days = ( time() - (int) $summary['timestamp'] ) / DAY_IN_SECONDS;
+			$date_str = date_i18n( 'j. n. Y H:i', (int) $summary['timestamp'] );
+
+			if ( $age_days < 7 ) {
+				$checks[] = [
+					'id'           => 'json_ld_last_scan',
+					'label'        => 'Poslední scan',
+					'status'       => 'good',
+					'message'      => sprintf( 'Poslední scan dokončen %s (%d stránek).', $date_str, (int) $summary['scanned'] ),
+					'action_label' => null,
+					'action_url'   => null,
+				];
+			} else {
+				$checks[] = [
+					'id'           => 'json_ld_last_scan',
+					'label'        => 'Poslední scan',
+					'status'       => 'warning',
+					'message'      => sprintf( 'Poslední scan je starší než týden (%s). Spusťte nový scan.', $date_str ),
+					'action_label' => 'Spustit scan',
+					'action_url'   => $page_url,
+				];
+			}
+
+			// Nevalidní schémata
+			if ( (int) $summary['invalid'] > 0 ) {
+				$checks[] = [
+					'id'           => 'json_ld_invalid',
+					'label'        => 'Nevalidní schémata',
+					'status'       => 'critical',
+					'message'      => sprintf( '%d stránek má nevalidní JSON-LD schéma (chybějící povinná vlastnost). Opravou získáte šanci na rich snippety v Googlu.', (int) $summary['invalid'] ),
+					'action_label' => 'Zobrazit stránky s chybami',
+					'action_url'   => $page_url,
+				];
+			} else {
+				$checks[] = [
+					'id'           => 'json_ld_invalid',
+					'label'        => 'Nevalidní schémata',
+					'status'       => 'good',
+					'message'      => 'Žádné nevalidní JSON-LD schéma nenalezeno.',
+					'action_label' => null,
+					'action_url'   => null,
+				];
+			}
+
+			// Duplicitní schémata
+			if ( (int) $summary['duplicates'] > 0 ) {
+				$checks[] = [
+					'id'           => 'json_ld_duplicates',
+					'label'        => 'Duplicitní schémata',
+					'status'       => 'warning',
+					'message'      => sprintf( '%d stránek má duplicitní JSON-LD schéma stejného typu. Google může ignorovat oba bloky. Deaktivujte výstup jednoho ze zdrojů.', (int) $summary['duplicates'] ),
+					'action_label' => 'Zobrazit stránky s duplikáty',
+					'action_url'   => $page_url,
+				];
+			}
+		}
+
+		return $checks;
+	}
+
+	private static function pdf_checks(): array {
+		$loader_exists = file_exists( SEOB_PLUGIN_DIR . 'vendor/tcpdf/seob-tcpdf-loader.php' );
+
+		return [
+			[
+				'id'           => 'pdf_tcpdf_available',
+				'label'        => 'Knihovna TCPDF',
+				'status'       => $loader_exists ? 'good' : 'critical',
+				'message'      => $loader_exists
+					? 'Knihovna TCPDF je dostupná, export PDF reportů funguje.'
+					: 'Chybí vendor/tcpdf – export PDF reportů nebude fungovat. Zkontrolujte instalaci pluginu.',
+				'action_label' => null,
+				'action_url'   => null,
+			],
+		];
+	}
+
+	private static function content_decay_checks(): array {
+		$checks   = [];
+		$page_url = admin_url( 'admin.php?page=seob-content-decay' );
+		$last     = SEOB_ContentDecay_Scanner::get_last();
+
+		if ( null === $last ) {
+			$checks[] = [
+				'id'           => 'content_decay_last_scan',
+				'label'        => 'Content Decay – poslední scan',
+				'status'       => 'warning',
+				'message'      => 'Žádný Content Decay scan dosud neproběhl.',
+				'action_label' => 'Spustit scan',
+				'action_url'   => $page_url,
+			];
+			return $checks;
+		}
+
+		$age_days = ( time() - (int) $last['scanned_at'] ) / DAY_IN_SECONDS;
+		$date_str = date_i18n( 'j. n. Y H:i', (int) $last['scanned_at'] );
+
+		$checks[] = [
+			'id'           => 'content_decay_last_scan',
+			'label'        => 'Content Decay – poslední scan',
+			'status'       => $age_days < 30 ? 'good' : 'warning',
+			'message'      => $age_days < 30
+				? sprintf( 'Poslední scan %s. Analyzováno %d stránek.', $date_str, (int) $last['total'] )
+				: sprintf( 'Poslední scan je starší než 30 dní (%s). Doporučujeme spustit nový.', $date_str ),
+			'action_label' => $age_days < 30 ? null : 'Spustit scan',
+			'action_url'   => $age_days < 30 ? null : $page_url,
+		];
+
+		if ( (int) $last['decaying'] > 0 ) {
+			$checks[] = [
+				'id'           => 'content_decay_critical',
+				'label'        => 'Chřadnoucí stránky',
+				'status'       => 'critical',
+				'message'      => sprintf( '%d stránek má decay skóre ≥ 61 – starý obsah a/nebo prudký pokles organické návštěvnosti. Vyžaduje aktualizaci.', (int) $last['decaying'] ),
+				'action_label' => 'Zobrazit stránky',
+				'action_url'   => $page_url,
+			];
+		}
+
+		if ( (int) $last['stale'] > 0 ) {
+			$checks[] = [
+				'id'           => 'content_decay_warning',
+				'label'        => 'Stagnující stránky',
+				'status'       => 'warning',
+				'message'      => sprintf( '%d stránek stagnuje (decay skóre 41–60). Zvažte aktualizaci obsahu.', (int) $last['stale'] ),
+				'action_label' => 'Zobrazit stránky',
+				'action_url'   => $page_url,
+			];
+		}
+
+		return $checks;
+	}
+
+	private static function http_headers_checks(): array {
+		$checks   = [];
+		$page_url = admin_url( 'admin.php?page=seob-http-headers' );
+		$history  = SEOB_HttpHeaders_ScanRunner::get_history();
+
+		if ( empty( $history ) ) {
+			$checks[] = [
+				'id'           => 'http_headers_last_scan',
+				'label'        => 'Poslední scan',
+				'status'       => 'warning',
+				'message'      => 'Žádný scan HTTP hlaviček dosud neproběhl.',
+				'action_label' => 'Spustit scan',
+				'action_url'   => $page_url,
+			];
+			return $checks;
+		}
+
+		$last     = $history[0];
+		$age_days = ( time() - (int) $last['started_at'] ) / DAY_IN_SECONDS;
+		$date_str = date_i18n( 'j. n. Y H:i', (int) $last['started_at'] );
+
+		$checks[] = [
+			'id'           => 'http_headers_last_scan',
+			'label'        => 'Poslední scan',
+			'status'       => $age_days < 14 ? 'good' : 'warning',
+			'message'      => $age_days < 14
+				? sprintf( 'Poslední scan dokončen %s (%d URL).', $date_str, (int) $last['scanned'] )
+				: sprintf( 'Poslední scan je starší než 2 týdny (%s).', $date_str ),
+			'action_label' => $age_days < 14 ? null : 'Spustit nový scan',
+			'action_url'   => $age_days < 14 ? null : $page_url,
+		];
+
+		if ( (int) $last['critical'] > 0 ) {
+			$checks[] = [
+				'id'           => 'http_headers_critical',
+				'label'        => 'Kritické problémy',
+				'status'       => 'critical',
+				'message'      => sprintf( '%d URL má kritický problém s HTTP hlavičkami (x-robots-tag: noindex, HTTP místo HTTPS nebo HTTP chyba). Zkontrolujte okamžitě.', (int) $last['critical'] ),
+				'action_label' => 'Zobrazit problémy',
+				'action_url'   => $page_url,
+			];
+		}
+
+		if ( (int) $last['warnings'] > 0 ) {
+			$checks[] = [
+				'id'           => 'http_headers_warnings',
+				'label'        => 'Bezpečnostní hlavičky',
+				'status'       => 'warning',
+				'message'      => sprintf( '%d URL chybí doporučené bezpečnostní hlavičky (HSTS, X-Frame-Options, X-Content-Type-Options).', (int) $last['warnings'] ),
+				'action_label' => 'Zobrazit varování',
+				'action_url'   => $page_url,
+			];
+		}
+
+		return $checks;
+	}
+}

@@ -57,8 +57,8 @@ seo-boost/
 │   │
 │   ├── Database/Database.php      ← helper pro názvy DB tabulek
 │   ├── Admin/Admin.php            ← registrace admin stránek, enqueue assets
-│   ├── Audit/                     ← (plánováno) scanner, scoring, issues
-│   └── Redirects/                 ← (plánováno) redirect manager, 404 log
+│   ├── Audit/                     ← PixelWidth, Scanner, ScanRunner, Ajax (scan + inline edit)
+│   └── Redirects/                 ← RedirectManager (404 log + 301), Ajax (CRUD)
 │
 ├── templates/admin/
 │   ├── page-dashboard.php          ← Audit Dashboard (placeholder)
@@ -81,6 +81,12 @@ seo-boost/
 | `SEOB_Database` | Database/Database.php | Helper: `audit_table()`, `scan_runs_table()`, `ai_queue_table()`, `links_table()` |
 | `SEOB_Activator` | Activator.php | `activate()` / `deactivate()` – tvorba DB tabulek, výchozí hodnoty |
 | `SEOB_Admin` | Admin/Admin.php | Registrace admin stránek (Audit Dashboard, Přesměrování, Nastavení), enqueue Tailwind CSS |
+| `SEOB_Pixel_Width` | Audit/PixelWidth.php | Odhad šířky textu v px (Arial 14px) pro SERP limity title/description |
+| `SEOB_Audit_Scanner` | Audit/Scanner.php | Skenuje jeden post – vrací skóre 0–100 a pole nálezů (`issues_json`) |
+| `SEOB_Audit_ScanRunner` | Audit/ScanRunner.php | Řídí běh scanu (fronta v transientu, dávky, finalizace + duplicity) |
+| `SEOB_Audit_Ajax` | Audit/Ajax.php | AJAX: `seob_scan_start`, `seob_scan_batch`, `seob_scan_results`, `seob_save_meta` |
+| `SEOB_Redirect_Manager` | Redirects/RedirectManager.php | `template_redirect` – aplikace 301 / log 404, denní úklid |
+| `SEOB_Redirects_Ajax` | Redirects/Ajax.php | AJAX: `seob_redirect_list`, `seob_redirect_save`, `seob_redirect_delete` |
 
 ---
 
