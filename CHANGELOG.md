@@ -3,6 +3,11 @@
 Všechny výrazné změny jsou dokumentovány v tomto souboru.
 Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
 
+## [0.9.2] – 2026-06-22
+
+### Přidáno
+- **Redirect Manager: hromadný import z CSV** – nová sekce na stránce Přesměrování. Nahrání CSV souboru (čárka nebo středník, volitelná hlavička) vytvoří nebo aktualizuje přesměrování hromadně. Výsledek ukazuje počet vytvořených / aktualizovaných / přeskočených + chyby na konkrétních řádcích. Max 2 MB, MIME validace.
+
 ## [0.9.1] – 2026-06-22
 
 ### Bezpečnost (kompletní penetrační audit 96 PHP souborů)
