@@ -158,67 +158,149 @@
 
 	loadList();
 
-	// ── CSV Import ────────────────────────────────────────────────────────────
-	var importBtn    = document.getElementById( 'seob-import-csv' );
-	var importFile   = document.getElementById( 'seob-csv-file' );
+	// ── CSV Import – 2-krokový flow (Náhled → Potvrdit) ─────────────────────
+	var csvFile      = document.getElementById( 'seob-csv-file' );
+	var httpCode     = document.getElementById( 'seob-http-code' );
+	var previewBtn   = document.getElementById( 'seob-preview-csv' );
+	var step2        = document.getElementById( 'seob-csv-step2' );
+	var previewBody  = document.getElementById( 'seob-preview-body' );
+	var previewSum   = document.getElementById( 'seob-preview-summary' );
+	var confirmBtn   = document.getElementById( 'seob-confirm-import' );
+	var cancelBtn    = document.getElementById( 'seob-cancel-preview' );
+	var importStatus = document.getElementById( 'seob-import-status' );
 	var importResult = document.getElementById( 'seob-import-result' );
 
-	if ( importBtn && importFile ) {
-		importBtn.addEventListener( 'click', function () {
-			if ( ! importFile.files || ! importFile.files[0] ) {
+	if ( ! previewBtn ) { return; }
+
+	// Krok 1 – Náhled
+	previewBtn.addEventListener( 'click', function () {
+		if ( ! csvFile || ! csvFile.files || ! csvFile.files[0] ) {
+			alert( 'Nejprve vyberte CSV soubor.' );
+			return;
+		}
+
+		previewBtn.disabled = true;
+		previewBtn.textContent = 'Načítám náhled…';
+		step2.style.display = 'none';
+		importResult.style.display = 'none';
+
+		var fd = new FormData();
+		fd.append( 'action', 'seob_redirect_preview_csv' );
+		fd.append( 'nonce', seobData.nonce );
+		fd.append( 'csv_file', csvFile.files[0] );
+
+		fetch( seobData.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: fd } )
+		.then( function ( r ) { return r.json(); } )
+		.then( function ( res ) {
+			previewBtn.disabled = false;
+			previewBtn.textContent = 'Náhled párování';
+
+			if ( ! res.success ) {
 				importResult.style.display = 'block';
-				importResult.innerHTML = '<span style="color:#d63638;">Nejprve vyberte CSV soubor.</span>';
+				importResult.innerHTML = '<span style="color:#d63638;">' + ( res.data && res.data.message ? res.data.message : 'Chyba při načítání.' ) + '</span>';
 				return;
 			}
 
-			importBtn.disabled = true;
-			importBtn.textContent = 'Importuji…';
-			importResult.style.display = 'none';
+			var rows   = res.data.rows;
+			var total  = res.data.total;
+			var valid  = rows.filter( function ( r ) { return r.valid; } ).length;
+			var bad    = rows.filter( function ( r ) { return ! r.valid; } ).length;
 
-			var formData = new FormData();
-			formData.append( 'action', 'seob_redirect_import_csv' );
-			formData.append( 'nonce', seobData.nonce );
-			formData.append( 'csv_file', importFile.files[0] );
+			// Přehledový souhrn
+			previewSum.innerHTML =
+				'Celkem <strong>' + total + '</strong> řádků &nbsp;|&nbsp; ' +
+				'<span style="color:#00a32a;">✔ Platných: <strong>' + valid + '</strong></span>' +
+				( bad ? ' &nbsp;|&nbsp; <span style="color:#d63638;">✘ Chybných: <strong>' + bad + '</strong></span>' : '' ) +
+				( total > 500 ? ' &nbsp;— zobrazeno prvních 500' : '' );
 
-			fetch( seobData.ajaxUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				body: formData
-			} )
-			.then( function ( r ) { return r.json(); } )
-			.then( function ( response ) {
-				importBtn.disabled = false;
-				importBtn.textContent = 'Importovat';
-				importResult.style.display = 'block';
-
-				if ( response.success ) {
-					var d = response.data;
-					var html = '<div style="padding:10px 14px;background:#edfaef;border-left:4px solid #00a32a;border-radius:2px;">';
-					html += '<strong>Import dokončen</strong><br>';
-					html += '✅ Vytvořeno: <strong>' + d.created + '</strong> &nbsp;|&nbsp; ';
-					html += '🔄 Aktualizováno: <strong>' + d.updated + '</strong> &nbsp;|&nbsp; ';
-					html += '⏭ Přeskočeno: <strong>' + d.skipped + '</strong>';
-					if ( d.errors && d.errors.length ) {
-						html += '<details style="margin-top:8px;"><summary style="cursor:pointer;color:#666;">Zobrazit chyby (' + d.errors.length + ')</summary>';
-						html += '<ul style="margin:6px 0 0 16px;font-size:12px;color:#666;">';
-						d.errors.forEach( function ( e ) { html += '<li>' + e + '</li>'; } );
-						html += '</ul></details>';
-					}
-					html += '</div>';
-					importResult.innerHTML = html;
-					loadList(); // obnov seznam přesměrování
-				} else {
-					importResult.innerHTML = '<span style="color:#d63638;">' +
-						( response.data && response.data.message ? response.data.message : 'Import selhal.' ) +
-						'</span>';
-				}
-			} )
-			.catch( function () {
-				importBtn.disabled = false;
-				importBtn.textContent = 'Importovat';
-				importResult.style.display = 'block';
-				importResult.innerHTML = '<span style="color:#d63638;">Chyba sítě. Zkuste to znovu.</span>';
+			// Tabulka náhledu
+			previewBody.innerHTML = '';
+			rows.forEach( function ( r ) {
+				var tr = document.createElement( 'tr' );
+				tr.style.background = r.valid ? '' : '#fff5f5';
+				tr.innerHTML =
+					'<td style="color:#999;">' + r.line + '</td>' +
+					'<td style="font-family:monospace;font-size:11px;word-break:break-all;">' + esc( r.source || r.raw_source ) + '</td>' +
+					'<td style="font-family:monospace;font-size:11px;word-break:break-all;">' + esc( r.target || r.raw_target ) + '</td>' +
+					'<td>' + ( r.valid
+						? '<span style="color:#00a32a;">✔ OK</span>'
+						: '<span style="color:#d63638;" title="' + esc( r.error ) + '">✘ ' + esc( r.error ) + '</span>'
+					) + '</td>';
+				previewBody.appendChild( tr );
 			} );
+
+			confirmBtn.textContent = 'Potvrdit a importovat (' + valid + ' přesměrování)';
+			confirmBtn.disabled = valid === 0;
+			importStatus.textContent = '';
+			step2.style.display = 'block';
+		} )
+		.catch( function () {
+			previewBtn.disabled = false;
+			previewBtn.textContent = 'Náhled párování';
+			importResult.style.display = 'block';
+			importResult.innerHTML = '<span style="color:#d63638;">Chyba sítě.</span>';
 		} );
+	} );
+
+	// Krok 2 – Potvrdit import
+	confirmBtn && confirmBtn.addEventListener( 'click', function () {
+		if ( ! csvFile || ! csvFile.files || ! csvFile.files[0] ) { return; }
+
+		confirmBtn.disabled = true;
+		importStatus.textContent = 'Importuji…';
+
+		var fd = new FormData();
+		fd.append( 'action', 'seob_redirect_import_csv' );
+		fd.append( 'nonce', seobData.nonce );
+		fd.append( 'csv_file', csvFile.files[0] );
+		fd.append( 'http_code', httpCode ? httpCode.value : '301' );
+
+		fetch( seobData.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: fd } )
+		.then( function ( r ) { return r.json(); } )
+		.then( function ( res ) {
+			confirmBtn.disabled = false;
+			importStatus.textContent = '';
+			step2.style.display = 'none';
+			importResult.style.display = 'block';
+
+			if ( res.success ) {
+				var d = res.data;
+				var codeLabel = httpCode ? httpCode.options[ httpCode.selectedIndex ].text : '301';
+				var html = '<div style="padding:12px 16px;background:#edfaef;border-left:4px solid #00a32a;border-radius:2px;">';
+				html += '<strong>✅ Import dokončen</strong> <span style="color:#666;font-size:12px;">(' + codeLabel + ')</span><br style="margin-bottom:6px;">';
+				html += '✅ Vytvořeno: <strong>' + d.created + '</strong> &nbsp;|&nbsp; ';
+				html += '🔄 Aktualizováno: <strong>' + d.updated + '</strong> &nbsp;|&nbsp; ';
+				html += '⏭ Přeskočeno: <strong>' + d.skipped + '</strong>';
+				if ( d.errors && d.errors.length ) {
+					html += '<details style="margin-top:8px;"><summary style="cursor:pointer;color:#666;font-size:12px;">Zobrazit chyby (' + d.errors.length + ')</summary>';
+					html += '<ul style="margin:6px 0 0 16px;font-size:11px;color:#666;">';
+					d.errors.forEach( function ( e ) { html += '<li>' + esc( e ) + '</li>'; } );
+					html += '</ul></details>';
+				}
+				html += '</div>';
+				importResult.innerHTML = html;
+				loadList();
+			} else {
+				importResult.innerHTML = '<div style="padding:10px 14px;background:#fcf0f1;border-left:4px solid #d63638;border-radius:2px;color:#d63638;">' +
+					( res.data && res.data.message ? esc( res.data.message ) : 'Import selhal.' ) + '</div>';
+			}
+		} )
+		.catch( function () {
+			confirmBtn.disabled = false;
+			importStatus.textContent = '';
+			importResult.style.display = 'block';
+			importResult.innerHTML = '<span style="color:#d63638;">Chyba sítě.</span>';
+		} );
+	} );
+
+	// Zrušit náhled
+	cancelBtn && cancelBtn.addEventListener( 'click', function () {
+		step2.style.display = 'none';
+		importResult.style.display = 'none';
+	} );
+
+	// HTML escape helper
+	function esc( s ) {
+		return String( s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' );
 	}
 }() );
