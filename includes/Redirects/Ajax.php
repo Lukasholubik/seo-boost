@@ -12,9 +12,10 @@ class SEOB_Redirects_Ajax {
 	const NONCE_ACTION = 'seob_admin_nonce';
 
 	public function __construct() {
-		add_action( 'wp_ajax_seob_redirect_list', [ $this, 'list_redirects' ] );
-		add_action( 'wp_ajax_seob_redirect_save', [ $this, 'save_redirect' ] );
-		add_action( 'wp_ajax_seob_redirect_delete', [ $this, 'delete_redirect' ] );
+		add_action( 'wp_ajax_seob_redirect_list',       [ $this, 'list_redirects' ] );
+		add_action( 'wp_ajax_seob_redirect_save',       [ $this, 'save_redirect' ] );
+		add_action( 'wp_ajax_seob_redirect_delete',     [ $this, 'delete_redirect' ] );
+		add_action( 'wp_ajax_seob_redirect_import_csv', [ $this, 'import_csv' ] );
 	}
 
 	private function check_request(): void {
@@ -157,6 +158,129 @@ class SEOB_Redirects_Ajax {
 		}
 
 		return $path;
+	}
+
+	/**
+	 * Hromadný import přesměrování z CSV souboru.
+	 *
+	 * Formát CSV (oddělovač čárka nebo středník, volitelná hlavička):
+	 *   source,target
+	 *   /stara-stranka/,/nova-stranka/
+	 *   /jina-stranka/,https://externi-web.cz/
+	 *
+	 * Vrátí: { created, updated, skipped, errors[] }
+	 */
+	public function import_csv(): void {
+		$this->check_request();
+
+		if ( empty( $_FILES['csv_file'] ) || UPLOAD_ERR_OK !== (int) $_FILES['csv_file']['error'] ) {
+			wp_send_json_error( [ 'message' => __( 'Soubor nebyl nahrán.', 'seo-boost' ) ], 400 );
+		}
+
+		$file = $_FILES['csv_file'];
+
+		// Validace MIME – povoleny pouze text/csv a text/plain.
+		$allowed_types = [ 'text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel' ];
+		$mime          = mime_content_type( $file['tmp_name'] );
+		if ( ! in_array( $mime, $allowed_types, true ) ) {
+			wp_send_json_error( [ 'message' => __( 'Nahrajte prosím soubor CSV.', 'seo-boost' ) ], 400 );
+		}
+
+		// Maximální velikost 2 MB.
+		if ( $file['size'] > 2 * 1024 * 1024 ) {
+			wp_send_json_error( [ 'message' => __( 'Soubor je příliš velký (max 2 MB).', 'seo-boost' ) ], 400 );
+		}
+
+		$handle = fopen( $file['tmp_name'], 'r' );
+		if ( ! $handle ) {
+			wp_send_json_error( [ 'message' => __( 'Soubor nelze otevřít.', 'seo-boost' ) ], 500 );
+		}
+
+		// Auto-detekce oddělovače (čárka vs středník).
+		$first_line = fgets( $handle );
+		rewind( $handle );
+		$delimiter = ( substr_count( $first_line, ';' ) >= substr_count( $first_line, ',' ) ) ? ';' : ',';
+
+		// Přeskoč hlavičkový řádek pokud první buňka vypadá jako header (source/zdroj apod.).
+		$first_row = str_getcsv( $first_line, $delimiter );
+		$is_header = isset( $first_row[0] ) && in_array(
+			strtolower( trim( $first_row[0] ) ),
+			[ 'source', 'zdroj', 'from', 'od', 'url', 'target', 'cil', 'to', 'redirect' ],
+			true
+		);
+		if ( $is_header ) {
+			fgets( $handle ); // přeskoč hlavičku
+		}
+
+		global $wpdb;
+		$links_table = SEOB_Database::links_table();
+
+		$created  = 0;
+		$updated  = 0;
+		$skipped  = 0;
+		$errors   = [];
+		$line_num = $is_header ? 1 : 0;
+
+		while ( ( $row = fgetcsv( $handle, 1000, $delimiter ) ) !== false ) {
+			$line_num++;
+
+			if ( count( $row ) < 2 ) {
+				$errors[] = sprintf( __( 'Řádek %d: méně než 2 sloupce (přeskočeno).', 'seo-boost' ), $line_num );
+				$skipped++;
+				continue;
+			}
+
+			$source = $this->normalize_path( $row[0] );
+			$target = $this->validate_redirect_target( $row[1] );
+
+			if ( null === $source ) {
+				$errors[] = sprintf( __( 'Řádek %d: neplatná zdrojová cesta „%s".', 'seo-boost' ), $line_num, esc_html( substr( $row[0], 0, 60 ) ) );
+				$skipped++;
+				continue;
+			}
+
+			if ( null === $target ) {
+				$errors[] = sprintf( __( 'Řádek %d: neplatný cíl přesměrování „%s".', 'seo-boost' ), $line_num, esc_html( substr( $row[1], 0, 60 ) ) );
+				$skipped++;
+				continue;
+			}
+
+			if ( $source === $target ) {
+				$errors[] = sprintf( __( 'Řádek %d: zdroj a cíl jsou stejné (%s).', 'seo-boost' ), $line_num, esc_html( $source ) );
+				$skipped++;
+				continue;
+			}
+
+			$existing_id = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM {$links_table} WHERE target_url = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$source
+				)
+			);
+
+			if ( $existing_id ) {
+				$wpdb->update(
+					$links_table,
+					[ 'redirect_to' => $target, 'link_type' => 'internal', 'http_status' => 301 ],
+					[ 'id' => $existing_id ],
+					[ '%s', '%s', '%d' ],
+					[ '%d' ]
+				);
+				$updated++;
+			} else {
+				$wpdb->insert(
+					$links_table,
+					[ 'target_url' => $source, 'redirect_to' => $target, 'link_type' => 'internal', 'http_status' => 301, 'hits_404' => 0 ],
+					[ '%s', '%s', '%s', '%d', '%d' ]
+				);
+				$created++;
+			}
+		}
+
+		fclose( $handle );
+		SEOB_Redirect_Manager::invalidate_cache();
+
+		wp_send_json_success( compact( 'created', 'updated', 'skipped', 'errors' ) );
 	}
 
 	/**

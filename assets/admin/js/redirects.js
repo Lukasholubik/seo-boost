@@ -157,4 +157,68 @@
 	}
 
 	loadList();
+
+	// ── CSV Import ────────────────────────────────────────────────────────────
+	var importBtn    = document.getElementById( 'seob-import-csv' );
+	var importFile   = document.getElementById( 'seob-csv-file' );
+	var importResult = document.getElementById( 'seob-import-result' );
+
+	if ( importBtn && importFile ) {
+		importBtn.addEventListener( 'click', function () {
+			if ( ! importFile.files || ! importFile.files[0] ) {
+				importResult.style.display = 'block';
+				importResult.innerHTML = '<span style="color:#d63638;">Nejprve vyberte CSV soubor.</span>';
+				return;
+			}
+
+			importBtn.disabled = true;
+			importBtn.textContent = 'Importuji…';
+			importResult.style.display = 'none';
+
+			var formData = new FormData();
+			formData.append( 'action', 'seob_redirect_import_csv' );
+			formData.append( 'nonce', seobData.nonce );
+			formData.append( 'csv_file', importFile.files[0] );
+
+			fetch( seobData.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				body: formData
+			} )
+			.then( function ( r ) { return r.json(); } )
+			.then( function ( response ) {
+				importBtn.disabled = false;
+				importBtn.textContent = 'Importovat';
+				importResult.style.display = 'block';
+
+				if ( response.success ) {
+					var d = response.data;
+					var html = '<div style="padding:10px 14px;background:#edfaef;border-left:4px solid #00a32a;border-radius:2px;">';
+					html += '<strong>Import dokončen</strong><br>';
+					html += '✅ Vytvořeno: <strong>' + d.created + '</strong> &nbsp;|&nbsp; ';
+					html += '🔄 Aktualizováno: <strong>' + d.updated + '</strong> &nbsp;|&nbsp; ';
+					html += '⏭ Přeskočeno: <strong>' + d.skipped + '</strong>';
+					if ( d.errors && d.errors.length ) {
+						html += '<details style="margin-top:8px;"><summary style="cursor:pointer;color:#666;">Zobrazit chyby (' + d.errors.length + ')</summary>';
+						html += '<ul style="margin:6px 0 0 16px;font-size:12px;color:#666;">';
+						d.errors.forEach( function ( e ) { html += '<li>' + e + '</li>'; } );
+						html += '</ul></details>';
+					}
+					html += '</div>';
+					importResult.innerHTML = html;
+					loadList(); // obnov seznam přesměrování
+				} else {
+					importResult.innerHTML = '<span style="color:#d63638;">' +
+						( response.data && response.data.message ? response.data.message : 'Import selhal.' ) +
+						'</span>';
+				}
+			} )
+			.catch( function () {
+				importBtn.disabled = false;
+				importBtn.textContent = 'Importovat';
+				importResult.style.display = 'block';
+				importResult.innerHTML = '<span style="color:#d63638;">Chyba sítě. Zkuste to znovu.</span>';
+			} );
+		} );
+	}
 }() );

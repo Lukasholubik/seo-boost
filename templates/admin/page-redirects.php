@@ -34,6 +34,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</tbody>
 	</table>
 
+	<hr>
+
+	<h2><?php esc_html_e( 'Hromadný import z CSV', 'seo-boost' ); ?></h2>
+	<p style="color:#666;margin-bottom:12px;">
+		<?php esc_html_e( 'Nahrajte CSV soubor se dvěma sloupci: zdrojová cesta a cíl přesměrování. Oddělovač čárka nebo středník, hlavička volitelná.', 'seo-boost' ); ?>
+	</p>
+	<div style="background:#f6f7f7;border:1px solid #dcdcde;border-radius:4px;padding:16px 20px;margin-bottom:24px;max-width:680px;">
+		<code style="display:block;background:#fff;border:1px solid #dcdcde;padding:8px 12px;margin-bottom:12px;font-size:12px;color:#444;">/stara-stranka/,/nova-stranka/<br>/dalsi-stranka/,https://externi-web.cz/cil/<br>/kategorie/produkt/,/nove-kategorie/produkt/</code>
+		<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+			<input type="file" id="seob-csv-file" accept=".csv,text/csv,text/plain" style="flex:1;min-width:240px;">
+			<button type="button" id="seob-import-csv" class="button button-primary"><?php esc_html_e( 'Importovat', 'seo-boost' ); ?></button>
+		</div>
+		<div id="seob-import-result" style="margin-top:12px;display:none;"></div>
+	</div>
+
 	<h2><?php esc_html_e( 'Zaznamenané 404', 'seo-boost' ); ?></h2>
 	<table class="wp-list-table widefat fixed striped">
 		<thead>
