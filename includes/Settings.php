@@ -254,4 +254,44 @@ class SEOB_Settings {
 	public static function update( string $option, array $value ): bool {
 		return update_option( $option, $value );
 	}
+
+	/**
+	 * Vrátí true, pokud plugin běží v lokálním/vývojovém prostředí.
+	 *
+	 * Používá se pro podmíněné vypnutí SSL verifikace při loopback HTTP
+	 * requestech – lokální prostředí (Local by Flywheel, .local domény apod.)
+	 * mají self-signed certifikáty, na produkci musí SSL verifikace běžet.
+	 *
+	 * Lze přepsat konstantou SEOB_SSLVERIFY v wp-config.php:
+	 *   define( 'SEOB_SSLVERIFY', true );  // vynutit verifikaci i lokálně
+	 *   define( 'SEOB_SSLVERIFY', false ); // vypnout verifikaci (jen staging)
+	 */
+	public static function is_local_environment(): bool {
+		if ( defined( 'SEOB_SSLVERIFY' ) ) {
+			return ! (bool) SEOB_SSLVERIFY;
+		}
+
+		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+
+		if ( '' === $host ) {
+			return false;
+		}
+
+		// localhost a IPv4 loopback
+		if ( in_array( $host, [ 'localhost', '127.0.0.1' ], true ) ) {
+			return true;
+		}
+
+		// Běžné lokální TLD: .local, .test, .dev, .example
+		if ( (bool) preg_match( '/\.(local|test|dev|example)$/i', $host ) ) {
+			return true;
+		}
+
+		// Privátní IPv4 rozsahy (10.x, 172.16-31.x, 192.168.x)
+		if ( (bool) preg_match( '/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/', $host ) ) {
+			return true;
+		}
+
+		return false;
+	}
 }

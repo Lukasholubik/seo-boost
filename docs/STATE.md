@@ -5,7 +5,28 @@
 
 ---
 
-## 🟢 ZAČNI ZDE – session 2026-06-17 – v0.9.0 – M12: JS Render Gap (NEPUSHNUTO)
+## 🟢 ZAČNI ZDE – session 2026-06-22 – v0.9.1 – Penetrační audit + live příprava (PUSHNUTO)
+
+**Co proběhlo:**
+Kompletní penetrační audit 96 PHP souborů dle Bezpečnost.txt checklistu.
+Opraveno 5 problémů (viz dev-log 2026-06-22). Verze `0.9.0 → 0.9.1`. `composer test` 96/96 OK.
+
+**Klíčová oprava pro live:**
+`sslverify = false` bylo globální → nyní podmíněné přes `SEOB_Settings::is_local_environment()`.
+Na produkci (reboost.cz) bude SSL verifikace automaticky `true`.
+
+**Zbývá ze zadání:**
+- M7: Search Console konektor (full OAuth) – jediný neimplementovaný modul
+
+**Všechny ostatní moduly jsou hotové:**
+Audit Dashboard ✅, Redirects ✅, GSC Insights ✅, AI fronta ✅, PDF Export ✅,
+Chytrá indexace ✅, PageSpeed ✅, Hreflang ✅, Interní prolinkování ✅,
+JSON-LD Validátor ✅, Local SEO ✅, CWV RUM ✅, JS Render Gap ✅,
+HTTP Hlavičky ✅, Content Decay ✅
+
+---
+
+## 🟡 Předchozí ZAČNI ZDE – session 2026-06-17 – v0.9.0 – M12: JS Render Gap (PUSHNUTO)
 
 **Nově: M12 – JS Render Gap detektor.** Nový modul `js-render-gap` (výchozí: vypnuto).
 Frontend beacon (< 1.5 kB, localStorage rate limit 7 dní) sbírá rendered DOM; REST endpoint

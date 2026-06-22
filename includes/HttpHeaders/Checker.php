@@ -44,7 +44,7 @@ class SEOB_HttpHeaders_Checker {
 		$response = wp_remote_head( $url, [
 			'timeout'     => 10,
 			'redirection' => 0,          // Nesleduj přesměrování automaticky – chceme vidět status
-			'sslverify'   => false,
+			'sslverify'   => ! SEOB_Settings::is_local_environment(),
 			'user-agent'  => 'SEOBoosterPro/1.0 (WordPress; header-check)',
 		] );
 

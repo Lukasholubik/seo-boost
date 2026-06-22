@@ -32,6 +32,20 @@ class SEOB_AiQueue_OpenAi_Compatible_Provider implements SEOB_AiQueue_Provider_I
 
 		$url = rtrim( $this->endpoint, '/' ) . '/chat/completions';
 
+		// SSRF ochrana: endpoint musí být http/https a nesmí mířit na privátní síť.
+		// Administrátor nastavuje endpoint – i tak blokujeme metadata API a lokální sítě.
+		$parsed_scheme = wp_parse_url( $url, PHP_URL_SCHEME );
+		$parsed_host   = (string) wp_parse_url( $url, PHP_URL_HOST );
+
+		if ( ! in_array( $parsed_scheme, [ 'http', 'https' ], true ) || '' === $parsed_host ) {
+			return new WP_Error( 'seob_ai_invalid_endpoint', __( 'Neplatný AI endpoint – povoleny jsou pouze https/http URL.', 'seo-boost' ) );
+		}
+
+		// Blokuj privátní/rezervované IP rozsahy (AWS metadata 169.254.x, loopback, LAN).
+		if ( (bool) preg_match( '/^(localhost|127\.|0\.|169\.254\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|::1)/i', $parsed_host ) ) {
+			return new WP_Error( 'seob_ai_invalid_endpoint', __( 'Neplatný AI endpoint – privátní a lokální adresy nejsou povoleny.', 'seo-boost' ) );
+		}
+
 		$response = wp_remote_post(
 			$url,
 			[

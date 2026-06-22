@@ -24,6 +24,8 @@ class SEOB_JsGap_Ajax {
 		$snap_table   = SEOB_Database::js_gap_snapshots_table();
 		$result_table = SEOB_Database::js_gap_results_table();
 
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		// Tabulková jména pocházejí z konstant SEOB_Database::*_table() – žádný user input v SQL.
 		$total_snaps    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$snap_table}" );
 		$total_analyzed = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$result_table}" );
 		$critical       = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$result_table} WHERE gap_score >= 50" );
@@ -32,6 +34,7 @@ class SEOB_JsGap_Ajax {
 		$avg_score      = (float) $wpdb->get_var( "SELECT AVG(gap_score) FROM {$result_table}" );
 		$last_snap      = $wpdb->get_var( "SELECT MAX(received_at) FROM {$snap_table}" );
 		$last_analyzed  = $wpdb->get_var( "SELECT MAX(analyzed_at) FROM {$result_table}" );
+		// phpcs:enable
 		$snaps_24h      = (int) $wpdb->get_var(
 			$wpdb->prepare( "SELECT COUNT(*) FROM {$snap_table} WHERE received_at >= %s", gmdate( 'Y-m-d H:i:s', strtotime( '-24 hours' ) ) )
 		);
@@ -78,6 +81,8 @@ class SEOB_JsGap_Ajax {
 			ARRAY_A
 		);
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		// $where pochází z match() na sanitize_key() vstupu – hodnoty jsou hardcoded řetězce s čísly, žádný user input.
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$t} {$where}" );
 
 		// Decode issues

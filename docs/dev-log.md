@@ -7,6 +7,67 @@
 
 ## Záznamy
 
+### 2026-06-22 – v0.9.1 – Kompletní penetrační audit + příprava na live
+
+**Co bylo uděláno:**
+Kompletní bezpečnostní audit celého pluginu (96 PHP souborů) dle checklistu Bezpečnost.txt + opravy nalezených problémů. Verze `0.9.0 → 0.9.1`.
+
+**Nalezené a opravené problémy:**
+
+1. **`sslverify = false` globálně na produkci** *(kritické pro live)*
+   - `Plugin.php`, `Audit/Scanner.php`, `JsonLd/PageScanner.php`, `HttpHeaders/Checker.php` měly `sslverify = false` natvrdo – na produkci s platným SSL certifikátem tím bylo vypnuto ověřování certifikátů (MITM riziko).
+   - Oprava: přidána `SEOB_Settings::is_local_environment()` – detekuje `.local`, `localhost`, privátní IP. `sslverify` se nastaví na `false` pouze v lokálním prostředí. Na produkci automaticky `true`.
+   - Lze přepsat konstantou `SEOB_SSLVERIFY` v `wp-config.php`.
+
+2. **`Audit/Scanner.php` – předávání všech `$_COOKIE` v loopback requestu** *(střední)*
+   - Loopback request při detekci H1 přeposílal VŠECHNY cookies (tracking, třetí strany). Při neočekávaném přesměrování mimo doménu mohlo dojít k úniku session dat.
+   - Oprava: filtr na cookies – přeposílají se pouze `wordpress_*` cookies (WP autentizační token).
+
+3. **`JsRenderGap/BeaconReceiver.php` – záplava transienty per URL+IP** *(nízké)*
+   - Rate limit byl per URL+IP → útočník s jednou IP mohl vytvořit tisíce transienty (různé URL). 
+   - Oprava: přidán globální per-IP rate limit 200 snapshotů/hod (transient `seob_jsgap_glrl_{ip_hash}`).
+
+4. **`AiQueue/OpenAiCompatibleProvider.php` – SSRF přes AI endpoint** *(nízké, admin-only)*
+   - Administrátor mohl zadat AI endpoint na privátní IP (AWS metadata 169.254.x.x apod.).
+   - Oprava: blokování non-http(s) protokolů a privátních/rezervovaných IP rozsahů.
+
+5. **`JsRenderGap/Ajax.php` – SQL dotazy bez prepare() s phpcs:ignore** *(info)*
+   - Statické dotazy s hardcoded WHERE podmínkami. Technicky bezpečné, ale nekonzistentní.
+   - Oprava: přidány `phpcs:ignore` komentáře s vysvětlením proč je to bezpečné.
+
+**Potvrzeno jako OK (žádné kritické nálezy):**
+- ABSPATH check: přítomen ve VŠECH 96 PHP souborech ✅
+- Všechny AJAX handlery: `check_ajax_referer()` + `current_user_can('manage_options')` ✅
+- SQL s uživatelskými daty: vždy přes `$wpdb->prepare()` ✅
+- Output escaping: `esc_html()`, `esc_attr()`, `esc_url()` ve všech templates ✅
+- SSRF opravy z 2026-06-17: `validate_site_url()` v HttpHeaders + JsonLd potvrzeně funkční ✅
+- Žádné: `eval()`, `exec()`, `unserialize()`, `extract()` na user datech ✅
+- Redirect Manager: `wp_safe_redirect()` + `wp_validate_redirect()` ✅
+- API klíče: AES-256-CBC šifrování, nikdy nevraceny v čisté formě ✅
+
+**Nové soubory/metody:**
+- `SEOB_Settings::is_local_environment()` – centrální detekce lokálního prostředí (Settings.php řádek 260+)
+
+**`composer test`: 96/96 OK, 308 assertions.**
+
+**Upravené soubory:**
+- `includes/Settings.php` – nová metoda `is_local_environment()`
+- `includes/Plugin.php` – podmíněný cron_request filter
+- `includes/Audit/Scanner.php` – cookie filtering + conditional sslverify
+- `includes/JsonLd/PageScanner.php` – conditional sslverify
+- `includes/HttpHeaders/Checker.php` – conditional sslverify
+- `includes/JsRenderGap/BeaconReceiver.php` – globální per-IP rate limit
+- `includes/AiQueue/OpenAiCompatibleProvider.php` – SSRF ochrana
+- `includes/JsRenderGap/Ajax.php` – phpcs:ignore komentáře
+
+**Jak přidat SEOB_SSLVERIFY na produkci (pokud by byl problém):**
+Přidejte do `wp-config.php` před `/* That's all, stop editing! */`:
+```php
+define( 'SEOB_SSLVERIFY', true ); // vynutit SSL verifikaci (výchozí pro produkci)
+```
+
+---
+
 ### 2026-06-17 – v0.9.0 – Bezpečnostní audit + modul průvodce
 
 **Co bylo uděláno:**

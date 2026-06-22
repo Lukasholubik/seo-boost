@@ -20,7 +20,7 @@ class SEOB_JsonLd_PageScanner {
 		$response = wp_remote_get( $url, [
 			'timeout'    => 8,
 			'user-agent' => 'SEOBoosterPro/1.0 (JSON-LD Validator)',
-			'sslverify'  => false,
+			'sslverify'  => ! SEOB_Settings::is_local_environment(),
 		] );
 
 		if ( is_wp_error( $response ) ) {

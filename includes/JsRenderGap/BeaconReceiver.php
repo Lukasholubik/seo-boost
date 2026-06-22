@@ -37,10 +37,19 @@ class SEOB_JsGap_BeaconReceiver {
 
 		$path     = sanitize_text_field( $payload['path'] );
 		$url_hash = md5( $path );
+		$ip_hash  = substr( md5( $_SERVER['REMOTE_ADDR'] ?? 'unknown' ), 0, 16 );
 
-		// Rate limit: 1 snapshot per URL per 24h per IP hash
-		$ip_hash       = md5( $_SERVER['REMOTE_ADDR'] ?? '' );
-		$rl_key        = 'seob_jsgap_rl_' . $url_hash . '_' . $ip_hash;
+		// Globální rate limit per IP: max 200 snapshots/hod (brání zálavě transienty
+		// z různých URL od jednoho útočníka, kde per-URL limit nestačí).
+		$global_rl   = 'seob_jsgap_glrl_' . $ip_hash;
+		$global_hits = (int) get_transient( $global_rl );
+		if ( $global_hits >= 200 ) {
+			return new WP_REST_Response( null, 429 );
+		}
+		set_transient( $global_rl, $global_hits + 1, HOUR_IN_SECONDS );
+
+		// Per-URL rate limit: 1 snapshot per URL per 24h per IP
+		$rl_key = 'seob_jsgap_rl_' . $url_hash . '_' . $ip_hash;
 		if ( get_transient( $rl_key ) ) {
 			return new WP_REST_Response( null, 204 );
 		}

@@ -179,11 +179,16 @@ class SEOB_Audit_Scanner {
 			return null;
 		}
 
-		// Loopback request: posílá cookies přihlášeného uživatele, aby WP Rocket
-		// nevrátil starou cache a Wordfence/firewall nebral požadavek jako bota.
+		// Loopback request: přepošle pouze WP autentizační cookies, aby WP Rocket
+		// nevrátil cached stránku a Wordfence/firewall ho nebral jako bota.
+		// Předáváme POUZE cookies s prefixem "wordpress_" (auth token, přihlašovací stav).
+		// Ostatní cookies (session třetích stran, tracking apod.) se nepředávají –
+		// brání úniku dat v případě neočekávaného přesměrování.
 		$cookies = [];
 		foreach ( $_COOKIE as $name => $val ) {
-			$cookies[] = new WP_Http_Cookie( [ 'name' => $name, 'value' => $val ] );
+			if ( 0 === strpos( $name, 'wordpress_' ) ) {
+				$cookies[] = new WP_Http_Cookie( [ 'name' => $name, 'value' => $val ] );
+			}
 		}
 
 		$args = [
@@ -191,7 +196,7 @@ class SEOB_Audit_Scanner {
 			// worker pool). Pokud request selze, vraci count_rendered_h1() null a skener
 			// pouzije fallback na data z post_content – scan tak vzdy dokonci v rozumnem case.
 			'timeout'   => 3,
-			'sslverify' => false,
+			'sslverify' => ! SEOB_Settings::is_local_environment(),
 			'cookies'   => $cookies,
 			'headers'   => [ 'Cache-Control' => 'no-cache' ],
 		];
