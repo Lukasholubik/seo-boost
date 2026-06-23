@@ -192,60 +192,63 @@ class SEOB_KeywordBold_Processor {
 
 	/**
 	 * Obalí první $max výskytů $keyword v HTML fragmentu <strong data-seob-bold="1">.
-	 * Přeskočí výskyty uvnitř: <h1-6>, <strong>, <em>, <a>, existující bold.
+	 *
+	 * Funguje tak, že rozseká HTML na části: HTML tagy a text nody.
+	 * KW hledá POUZE v textových částech – ne uvnitř tagů, atributů ani
+	 * zakázaných elementů (h1-6, a, em, strong).
 	 *
 	 * @return array{0: string, 1: int}  [new_html, count]
 	 */
 	public static function bold_in_html( string $html, string $keyword, int $max = 1 ): array {
-		$count    = 0;
-		$kw_esc   = preg_quote( $keyword, '/' );
+		$count  = 0;
+		$kw_esc = preg_quote( $keyword, '/' );
 
-		// Regex: najde keyword mimo HTML tagy a naše vlastní <strong>.
-		// Lookahead/lookbehind zabrání matchování uvnitř tagů.
-		$pattern = '/(?<!["\'=>])(' . $kw_esc . ')(?!["\'=>])/iu';
+		// Zakázané tagy – uvnitř nich keyword neobalíme.
+		$forbidden_open  = [];
+		$forbidden_depth = 0;
 
-		$new_html = (string) preg_replace_callback(
-			$pattern,
-			static function ( array $m ) use ( &$count, $max, $html ): string {
-				if ( $count >= $max ) {
-					return $m[0];
+		// Rozdělení na HTML tagy a text nody.
+		// Každý sudý prvek je text node, každý lichý je HTML tag (nebo komentář).
+		$parts = preg_split( '/(<[^>]+>)/i', $html, -1, PREG_SPLIT_DELIM_CAPTURE );
+		if ( ! is_array( $parts ) ) {
+			return [ $html, 0 ];
+		}
+
+		$result = '';
+
+		foreach ( $parts as $part ) {
+			if ( strncmp( $part, '<', 1 ) === 0 ) {
+				// Je to HTML tag – sleduj kontext zakázaných elementů.
+				if ( preg_match( '/^<(h[1-6]|a|em|strong)(?:\s|\/|>)/i', $part, $tm ) ) {
+					$forbidden_depth++;
+				} elseif ( preg_match( '/^<\/(h[1-6]|a|em|strong)>/i', $part ) ) {
+					if ( $forbidden_depth > 0 ) {
+						$forbidden_depth--;
+					}
 				}
+				$result .= $part;
+			} else {
+				// Je to text node – hledej KW jen pokud nejsme uvnitř zakázaného tagu.
+				if ( $forbidden_depth > 0 || $count >= $max ) {
+					$result .= $part;
+				} else {
+					$new_part = (string) preg_replace_callback(
+						'/(' . $kw_esc . ')/iu',
+						static function ( array $m ) use ( &$count, $max ): string {
+							if ( $count >= $max ) {
+								return $m[0];
+							}
+							$count++;
+							return '<strong ' . SEOB_KeywordBold_Processor::BOLD_ATTR . '>' . $m[0] . '</strong>';
+						},
+						$part
+					);
+					$result .= $new_part;
+				}
+			}
+		}
 
-				// Zkontroluj zda jsme uvnitř zakázaného HTML tagu.
-				// Tato heuristika funguje pro jednoduché HTML – DOMDocument je přesnější
-				// ale pomalý pro batch operace.
-				$count++;
-				return '<strong ' . SEOB_KeywordBold_Processor::BOLD_ATTR . '>' . $m[0] . '</strong>';
-			},
-			$html
-		);
-
-		// Zpětná validace – odstraň případné boldy uvnitř nadpisů nebo odkazů.
-		$new_html = self::strip_bold_inside_forbidden_tags( $new_html ?? $html );
-
-		return [ $new_html, $count ];
-	}
-
-	/**
-	 * Odstraní naše <strong> uvnitř zakázaných tagů (h1-6, a, em, existující strong).
-	 * Používá jednoduchý state-machine parser – dostatečný pro Gutenberg HTML výstup.
-	 */
-	private static function strip_bold_inside_forbidden_tags( string $html ): string {
-		// Odstraň <strong data-seob-bold="1">...</strong> uvnitř heading/link tagů.
-		$forbidden_pattern = '/<(h[1-6]|a|em|strong(?:\s[^>]*)?)(?:\s[^>]*)?>[\s\S]*?<\/\1>/i';
-
-		return (string) preg_replace_callback(
-			$forbidden_pattern,
-			static function ( array $m ): string {
-				// Odstraň naše bold tagy z obsahu tohoto elementu.
-				return (string) preg_replace(
-					'/<strong\s+' . preg_quote( SEOB_KeywordBold_Processor::BOLD_ATTR, '/' ) . '>(.*?)<\/strong>/is',
-					'$1',
-					$m[0]
-				);
-			},
-			$html
-		);
+		return [ $result, $count ];
 	}
 
 	/**
