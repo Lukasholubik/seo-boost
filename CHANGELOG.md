@@ -3,6 +3,15 @@
 Všechny výrazné změny jsou dokumentovány v tomto souboru.
 Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.0.0/).
 
+## [1.2.0] – 2026-06-23
+
+### Přidáno
+- **Internal Links: per-group výběr** – každá záložka v sekcích Osamocené stránky i Všechny stránky má tlačítka přímo v záhlaví skupiny: **Vybrat vše**, **↑ Chybějící** (jen stránky s `link_status = low`), **↓ Přebývající** (jen `high`)
+- **Internal Links: bulk insert dávkování** – výběr libovolného počtu stránek je nyní zpracován v dávkách po 50 zasílaných sekvenčně; tlačítko ukazuje průběh „Dávka X / Y"; dříve se zpracovalo jen prvních 50 z celého výběru
+
+### Opraveno
+- Bulk insert ignoroval stránky 51+ při výběru více než 50 položek
+
 ## [0.9.2] – 2026-06-22
 
 ### Přidáno
