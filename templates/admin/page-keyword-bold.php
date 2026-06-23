@@ -66,7 +66,11 @@ unset( $post_types['attachment'] );
 		<button type="button" id="seob-kwb-stop-btn" class="button button-large" style="display:none;color:#b32d2e;border-color:#b32d2e">
 			⏹ <?php esc_html_e( 'Zastavit', 'seo-boost' ); ?>
 		</button>
+		<button type="button" id="seob-kwb-undo-btn" class="button button-large" style="color:#b32d2e;border-color:#b32d2e">
+			↺ <?php esc_html_e( 'Odebrat zvýraznění (vše)', 'seo-boost' ); ?>
+		</button>
 	</div>
+	<div id="seob-kwb-undo-status" style="display:none;margin-bottom:12px;padding:8px 12px;background:#fcf0f1;border-left:3px solid #b32d2e;font-size:13px"></div>
 
 	<!-- Progress -->
 	<div id="seob-kwb-progress-wrap" style="display:none;max-width:700px;margin-bottom:16px">
@@ -126,6 +130,8 @@ unset( $post_types['attachment'] );
 	var prevBtn    = document.getElementById( 'seob-kwb-preview-btn' );
 	var batchBtn   = document.getElementById( 'seob-kwb-batch-btn' );
 	var stopBtn    = document.getElementById( 'seob-kwb-stop-btn' );
+	var undoBtn    = document.getElementById( 'seob-kwb-undo-btn' );
+	var undoStatus = document.getElementById( 'seob-kwb-undo-status' );
 	var progWrap   = document.getElementById( 'seob-kwb-progress-wrap' );
 	var progBar    = document.getElementById( 'seob-kwb-progress-bar' );
 	var progLabel  = document.getElementById( 'seob-kwb-progress-label' );
@@ -285,6 +291,61 @@ unset( $post_types['attachment'] );
 	} );
 
 	stopBtn.addEventListener( 'click', function () { stopFlag = true; } );
+
+	// ── Batch Undo ───────────────────────────────────────────────────────────
+
+	if ( undoBtn ) {
+		undoBtn.addEventListener( 'click', function () {
+			if ( ! confirm( 'Odebrat zvýraznění KW ze VŠECH příspěvků vybraného post type? Tato akce je nevratná.' ) ) { return; }
+
+			undoBtn.disabled    = true;
+			undoBtn.textContent = '⏳ Odebírám…';
+			if ( undoStatus ) { undoStatus.style.display = 'none'; }
+
+			var undoOffset = 0;
+			var totalUndone = 0;
+
+			function runUndo() {
+				postForm( 'seob_kwbold_batch_undo', {
+					nonce:      nonce,
+					post_type:  postTypeEl.value,
+					offset:     undoOffset,
+					batch_size: 20,
+				} ).then( function ( d ) {
+					if ( ! d.success ) {
+						undoBtn.disabled    = false;
+						undoBtn.textContent = '↺ Odebrat zvýraznění (vše)';
+						if ( undoStatus ) {
+							undoStatus.innerHTML = '✗ Chyba: ' + esc( d.data && d.data.message ? d.data.message : 'neznámá' );
+							undoStatus.style.display = '';
+						}
+						return;
+					}
+					totalUndone += d.data.undone;
+					undoOffset   = d.data.next_offset;
+
+					if ( ! d.data.done ) {
+						undoBtn.textContent = '⏳ Odebírám… (' + totalUndone + ')';
+						setTimeout( runUndo, 100 );
+					} else {
+						undoBtn.disabled    = false;
+						undoBtn.textContent = '↺ Odebrat zvýraznění (vše)';
+						if ( undoStatus ) {
+							undoStatus.innerHTML = '✓ Hotovo: odebráno zvýraznění z <strong>' + totalUndone + '</strong> příspěvků.';
+							undoStatus.style.background = '#edfaef';
+							undoStatus.style.borderColor = '#00a32a';
+							undoStatus.style.display = '';
+						}
+					}
+				} ).catch( function () {
+					undoBtn.disabled    = false;
+					undoBtn.textContent = '↺ Odebrat zvýraznění (vše)';
+				} );
+			}
+
+			runUndo();
+		} );
+	}
 
 }() );
 </script>

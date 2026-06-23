@@ -53,9 +53,20 @@ class SEOB_KeywordBold_MetaBox {
 				</p>
 			<?php endif; ?>
 
-			<?php if ( $is_bolded && $applied ) : ?>
-				<p style="margin:0 0 6px;color:#2d7738;font-size:12px">
-					✓ <?php printf( esc_html__( 'Zvýrazněno %d×', 'seo-boost' ), (int) ( $applied['count'] ?? 0 ) ); ?>
+			<?php if ( $is_bolded && $applied ) :
+				$prev_count = (int) ( $applied['count'] ?? 0 );
+				$color      = $prev_count > 3 ? '#e67e00' : '#2d7738';
+				$icon       = $prev_count > 3 ? '⚠' : '✓';
+			?>
+				<p style="margin:0 0 2px;color:<?php echo esc_attr( $color ); ?>;font-size:12px">
+					<?php echo esc_html( $icon ); ?> <?php printf( esc_html__( 'Minulé spuštění: %d× zvýrazněno', 'seo-boost' ), $prev_count ); ?>
+				</p>
+				<p style="margin:0 0 6px;color:#888;font-size:11px">
+					<?php esc_html_e( '↓ Klikni "Zvýraznit KW" pro přepsání s aktuálním nastavením', 'seo-boost' ); ?>
+				</p>
+			<?php elseif ( $is_bolded ) : ?>
+				<p style="margin:0 0 6px;color:#888;font-size:12px">
+					<?php esc_html_e( 'Zvýraznění aktivní (bez záznamu počtu).', 'seo-boost' ); ?>
 				</p>
 			<?php endif; ?>
 

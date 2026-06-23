@@ -17,6 +17,7 @@ class SEOB_KeywordBold_Ajax {
 		add_action( 'wp_ajax_seob_kwbold_undo_post',     [ $this, 'ajax_undo_post' ] );
 		add_action( 'wp_ajax_seob_kwbold_batch',         [ $this, 'ajax_batch' ] );
 		add_action( 'wp_ajax_seob_kwbold_batch_preview', [ $this, 'ajax_batch_preview' ] );
+		add_action( 'wp_ajax_seob_kwbold_batch_undo',    [ $this, 'ajax_batch_undo' ] );
 	}
 
 	private function check(): void {
@@ -154,6 +155,68 @@ class SEOB_KeywordBold_Ajax {
 			'offset'      => $offset,
 			'next_offset' => $next_offset,
 			'total'       => $total,
+			'done'        => $done,
+		] );
+	}
+
+	// ── Batch undo ───────────────────────────────────────────────────────────
+
+	/**
+	 * Hromadně odstraní zvýraznění ze všech postů daného post_type.
+	 * POST: post_type, offset, batch_size
+	 */
+	public function ajax_batch_undo(): void {
+		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => 'Nedostatečná oprávnění.' ], 403 );
+			return;
+		}
+
+		$post_type = sanitize_key( $_POST['post_type'] ?? 'post' );
+		$offset    = absint( $_POST['offset'] ?? 0 );
+		$batch_sz  = min( 50, max( 1, absint( $_POST['batch_size'] ?? 20 ) ) );
+
+		$posts = get_posts( [
+			'post_type'      => $post_type,
+			'post_status'    => [ 'publish', 'draft' ],
+			'posts_per_page' => $batch_sz,
+			'offset'         => $offset,
+			'fields'         => 'ids',
+			'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
+				[
+					'key'     => '_seob_kw_bold_applied',
+					'compare' => 'EXISTS',
+				],
+			],
+		] );
+
+		$undone = 0;
+		wp_suspend_cache_invalidation( true );
+
+		foreach ( $posts as $post_id ) {
+			if ( SEOB_KeywordBold_Processor::undo_post( (int) $post_id ) ) {
+				$undone++;
+			}
+		}
+
+		wp_suspend_cache_invalidation( false );
+
+		$total      = (int) ( new WP_Query( [
+			'post_type'      => $post_type,
+			'post_status'    => [ 'publish', 'draft' ],
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'meta_query'     => [ [ 'key' => '_seob_kw_bold_applied', 'compare' => 'EXISTS' ] ], // phpcs:ignore WordPress.DB.SlowDBQuery
+		] ) )->found_posts;
+
+		$next_offset = $offset + count( $posts );
+		$done        = count( $posts ) < $batch_sz;
+
+		wp_send_json_success( [
+			'undone'      => $undone,
+			'offset'      => $offset,
+			'next_offset' => $next_offset,
+			'total'       => $total + $undone, // celkový počet před touto dávkou
 			'done'        => $done,
 		] );
 	}
