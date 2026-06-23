@@ -128,6 +128,20 @@
 		} );
 	}
 
+
+	function makeCheckboxCell( pageId, isOrphan ) {
+		var td = document.createElement( 'td' );
+		td.style.width = '28px';
+		td.style.paddingRight = '4px';
+		var cb = document.createElement( 'input' );
+		cb.type = 'checkbox';
+		cb.className = 'seob-links-row-check';
+		cb.dataset.id = pageId;
+		cb.dataset.isOrphan = isOrphan ? '1' : '0';
+		cb.addEventListener( 'change', updateBulkBar );
+		td.appendChild( cb );
+		return td;
+	}
 	function ajax( action, data ) {
 		var formData = new FormData();
 		formData.append( 'action', action );
