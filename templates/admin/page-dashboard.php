@@ -8,7 +8,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 ?>
 <div class="wrap seob-wrap">
-	<h1><?php esc_html_e( 'SEO Booster Pro – Audit Dashboard', 'seo-boost' ); ?></h1>
+	<h1>
+		<?php esc_html_e( 'SEO Booster Pro – Audit Dashboard', 'seo-boost' ); ?>
+		<span style="font-size:13px;font-weight:400;color:#646970;margin-left:10px">
+			v<?php echo esc_html( SEOB_VERSION ); ?>
+			&nbsp;·&nbsp;
+			<a href="<?php echo esc_url( admin_url( 'update-core.php?force-check=1' ) ); ?>" style="font-size:12px">
+				↻ <?php esc_html_e( 'Zkontrolovat aktualizace', 'seo-boost' ); ?>
+			</a>
+		</span>
+	</h1>
 
 	<div class="seob-toolbar">
 		<button type="button" id="seob-run-scan" class="button button-primary">
