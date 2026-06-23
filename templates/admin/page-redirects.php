@@ -10,12 +10,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 <div class="wrap seob-wrap">
 	<h1><?php esc_html_e( 'SEO Booster Pro – Přesměrování', 'seo-boost' ); ?></h1>
 
+	<!-- Datalist pro autocomplete ve všech target inputech -->
+	<datalist id="seob-common-targets">
+		<option value="/"><?php esc_html_e( 'Úvodní stránka', 'seo-boost' ); ?></option>
+		<option value="/kontakt/"></option>
+		<option value="/blog/"></option>
+		<option value="/slovnik/"></option>
+		<option value="/o-nas/"></option>
+		<option value="/cenik/"></option>
+		<option value="/sluzby/"></option>
+	</datalist>
+
 	<!-- Nové přesměrování -->
 	<h2><?php esc_html_e( 'Nové přesměrování', 'seo-boost' ); ?></h2>
 	<div class="seob-redirect-form">
 		<input type="text" id="seob-new-source" placeholder="<?php esc_attr_e( '/stara-adresa/', 'seo-boost' ); ?>">
 		<span class="seob-arrow">→</span>
-		<input type="text" id="seob-new-target" placeholder="<?php esc_attr_e( '/nova-adresa/', 'seo-boost' ); ?>" value="/">
+		<input type="text" id="seob-new-target" placeholder="<?php esc_attr_e( '/nova-adresa/', 'seo-boost' ); ?>" value="/" list="seob-common-targets">
 		<button type="button" id="seob-add-redirect" class="button button-primary"><?php esc_html_e( 'Vytvořit přesměrování', 'seo-boost' ); ?></button>
 		<span id="seob-add-status" class="seob-save-status"></span>
 	</div>
@@ -168,7 +179,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
 			<span id="seob-404-bulk-count" style="font-size:13px;color:#1d2327;"></span>
 			<input type="text" id="seob-404-bulk-target" placeholder="/nova-adresa/" value="/"
-				style="width:200px" title="Cíl přesměrování pro vybrané záznamy">
+				style="width:200px" list="seob-common-targets" title="Cíl přesměrování pro vybrané záznamy">
 			<button type="button" id="seob-404-bulk-save" class="button button-primary">
 				✓ <?php esc_html_e( 'Přesměrovat vybrané', 'seo-boost' ); ?>
 			</button>

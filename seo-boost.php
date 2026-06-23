@@ -3,7 +3,7 @@
  * Plugin Name: SEO Booster Pro
  * Plugin URI:  https://grou.cz
  * Description: Audit Dashboard, Redirect Manager, JS Render Gap a dalsi SEO nastroje kompatibilni s Rank Math (Free).
- * Version:     0.9.4
+ * Version:     0.9.5
  * Author:      Lukáš Holubík
  * Text Domain: seo-boost
  * Domain Path: /languages
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SEOB_VERSION',     '0.9.4' );
+define( 'SEOB_VERSION',     '0.9.5' );
 define( 'SEOB_DB_VERSION',  '0.9.0' );
 define( 'SEOB_PLUGIN_FILE', __FILE__ );
 define( 'SEOB_PLUGIN_DIR',  plugin_dir_path( __FILE__ ) );

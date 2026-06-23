@@ -180,7 +180,7 @@
 				'<td>' + esc( item.target_url ) + '</td>' +
 				'<td>' + hits + badge + '</td>' +
 				'<td style="font-size:11px;color:#666">' + esc( item.last_checked || '' ) + '</td>' +
-				'<td><input type="text" class="seob-redirect-target" placeholder="/nova-adresa/" value="/"></td>' +
+				'<td><input type="text" class="seob-redirect-target" placeholder="/nova-adresa/" value="/" list="seob-common-targets"></td>' +
 				'<td>' +
 					'<button type="button" class="button button-primary seob-create-from-404" style="font-size:11px;padding:2px 8px;height:auto">Přesměrovat</button> ' +
 					'<button type="button" class="button seob-dismiss-404" style="font-size:11px;padding:2px 8px;height:auto">Smazat</button>' +
@@ -259,7 +259,9 @@
 			ajax( 'seob_redirect_get_pages', {} ).then( function ( r ) {
 				loadPagesBtn.style.display = 'none';
 				if ( ! r.success || ! r.data.length ) { return; }
+				var datalist = document.getElementById( 'seob-common-targets' );
 				r.data.forEach( function ( page ) {
+					// Tlačítko v quick-fill baru
 					var btn = document.createElement( 'button' );
 					btn.type      = 'button';
 					btn.className = 'button seob-quick-target';
@@ -271,6 +273,13 @@
 						if ( f404BulkTarget ) { f404BulkTarget.value = page.url; }
 					} );
 					pagesList.appendChild( btn );
+					// Přidej i do datalistu pro autocomplete
+					if ( datalist && page.url !== '/' ) {
+						var opt = document.createElement( 'option' );
+						opt.value = page.url;
+						opt.label = page.label;
+						datalist.appendChild( opt );
+					}
 				} );
 			} ).catch( function () {
 				loadPagesBtn.disabled    = false;
