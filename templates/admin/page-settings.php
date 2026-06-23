@@ -96,6 +96,11 @@ $pagespeed = SEOB_Settings::get( SEOB_Settings::PAGESPEED );
 						<input type="checkbox" name="modules_content_decay" value="1" <?php checked( ! empty( $general['modules']['content-decay'] ) ); ?>>
 						<?php esc_html_e( 'Content Decay Monitor – identifikuje stránky se stárnoucím obsahem a poklesem organické návštěvnosti', 'seo-boost' ); ?>
 					</label>
+					<br>
+					<label>
+						<input type="checkbox" name="modules_keyword_bold" value="1" <?php checked( ! empty( $general['modules']['keyword-bold'] ) ); ?>>
+						<?php esc_html_e( 'Zvýraznění KW (Keyword Bold) – automaticky obalí Focus KW (Rank Math) tagem <strong> v obsahu příspěvků', 'seo-boost' ); ?>
+					</label>
 				</td>
 			</tr>
 			<tr>

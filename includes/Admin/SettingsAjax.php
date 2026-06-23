@@ -44,6 +44,7 @@ class SEOB_Settings_Ajax {
 				'js-render-gap'  => $this->bool_field( 'modules_js_render_gap' ),
 				'http-headers'   => $this->bool_field( 'modules_http_headers' ),
 				'content-decay'  => $this->bool_field( 'modules_content_decay' ),
+				'keyword-bold'   => $this->bool_field( 'modules_keyword_bold' ),
 			],
 		];
 
