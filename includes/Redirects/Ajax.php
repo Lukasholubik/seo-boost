@@ -60,6 +60,11 @@ class SEOB_Redirects_Ajax {
 		$target_url  = isset( $_POST['target_url'] ) ? wp_unslash( $_POST['target_url'] ) : '';
 		$redirect_to = isset( $_POST['redirect_to'] ) ? wp_unslash( $_POST['redirect_to'] ) : '';
 		$id          = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		$allowed_codes = [ 301, 302, 307, 308 ];
+		$http_code     = isset( $_POST['http_code'] ) ? absint( $_POST['http_code'] ) : 301;
+		if ( ! in_array( $http_code, $allowed_codes, true ) ) {
+			$http_code = 301;
+		}
 
 		$target_path = $this->normalize_path( $target_url );
 
@@ -98,7 +103,7 @@ class SEOB_Redirects_Ajax {
 					'target_url'  => $target_path,
 					'redirect_to' => $redirect_target,
 					'link_type'   => 'internal',
-					'http_status' => 301,
+					'http_status' => $http_code,
 				],
 				[ 'id' => $existing_id ],
 				[ '%s', '%s', '%s', '%d' ],
@@ -111,7 +116,7 @@ class SEOB_Redirects_Ajax {
 					'target_url'  => $target_path,
 					'redirect_to' => $redirect_target,
 					'link_type'   => 'internal',
-					'http_status' => 301,
+					'http_status' => $http_code,
 					'hits_404'    => 0,
 				],
 				[ '%s', '%s', '%s', '%d', '%d' ]
@@ -190,8 +195,13 @@ class SEOB_Redirects_Ajax {
 			wp_send_json_error( [ 'message' => __( 'Žádná ID nebyla zadána.', 'seo-boost' ) ], 400 );
 		}
 
-		$redirect_to = isset( $_POST['redirect_to'] ) ? wp_unslash( $_POST['redirect_to'] ) : '';
-		$target      = $this->validate_redirect_target( $redirect_to );
+		$redirect_to   = isset( $_POST['redirect_to'] ) ? wp_unslash( $_POST['redirect_to'] ) : '';
+		$target        = $this->validate_redirect_target( $redirect_to );
+		$allowed_codes = [ 301, 302, 307, 308 ];
+		$http_code     = isset( $_POST['http_code'] ) ? absint( $_POST['http_code'] ) : 301;
+		if ( ! in_array( $http_code, $allowed_codes, true ) ) {
+			$http_code = 301;
+		}
 
 		if ( null === $target ) {
 			wp_send_json_error( [ 'message' => __( 'Cílová adresa není platná.', 'seo-boost' ) ], 400 );
@@ -205,7 +215,7 @@ class SEOB_Redirects_Ajax {
 		foreach ( $ids as $id ) {
 			$result = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$table,
-				[ 'redirect_to' => $target, 'http_status' => 301 ],
+				[ 'redirect_to' => $target, 'http_status' => $http_code ],
 				[ 'id' => $id ],
 				[ '%s', '%d' ],
 				[ '%d' ]

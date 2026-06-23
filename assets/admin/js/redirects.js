@@ -35,10 +35,11 @@
 	var f404BulkSave   = document.getElementById( 'seob-404-bulk-save' );
 	var f404BulkDel    = document.getElementById( 'seob-404-bulk-delete' );
 
-	// 404 threshold filtr
+	// 404 threshold filtr + typ přesměrování
 	var f404MinHits    = document.getElementById( 'seob-404-min-hits' );
 	var f404FilterBtn  = document.getElementById( 'seob-404-filter-btn' );
 	var f404FilterInfo = document.getElementById( 'seob-404-filter-info' );
+	var f404HttpCode   = document.getElementById( 'seob-404-http-code' );
 
 	// Cache všech načtených dat
 	var allRedirects = [];
@@ -189,9 +190,10 @@
 			tr.querySelector( '.seob-404-check' ).addEventListener( 'change', update404BulkBar );
 
 			tr.querySelector( '.seob-create-from-404' ).addEventListener( 'click', function () {
-				var val = tr.querySelector( '.seob-redirect-target' ).value.trim();
+				var val      = tr.querySelector( '.seob-redirect-target' ).value.trim();
+				var httpCode = f404HttpCode ? f404HttpCode.value : '301';
 				if ( ! val ) { window.alert( 'Zadejte cílovou adresu.' ); return; }
-				ajax( 'seob_redirect_save', { id: item.id, target_url: item.target_url, redirect_to: val } )
+				ajax( 'seob_redirect_save', { id: item.id, target_url: item.target_url, redirect_to: val, http_code: httpCode } )
 					.then( function ( r ) {
 						if ( r.success ) { loadList(); }
 						else { window.alert( r.data && r.data.message ? r.data.message : 'Chyba.' ); }
@@ -342,14 +344,16 @@
 
 	if ( f404BulkSave ) {
 		f404BulkSave.addEventListener( 'click', function () {
-			var ids    = getChecked404Ids();
-			var target = f404BulkTarget ? f404BulkTarget.value.trim() : '/';
+			var ids      = getChecked404Ids();
+			var target   = f404BulkTarget ? f404BulkTarget.value.trim() : '/';
+			var httpCode = f404HttpCode ? f404HttpCode.value : '301';
 			if ( ! ids.length ) { return; }
 			if ( ! target ) { window.alert( 'Zadejte cílovou adresu.' ); return; }
 			var fd = new FormData();
 			fd.append( 'action', 'seob_redirect_bulk_save' );
 			fd.append( 'nonce', seobData.nonce );
 			fd.append( 'redirect_to', target );
+			fd.append( 'http_code', httpCode );
 			ids.forEach( function ( id ) { fd.append( 'ids[]', id ); } );
 			fetch( seobData.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: fd } )
 				.then( function ( r ) { return r.json(); } )

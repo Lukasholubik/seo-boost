@@ -145,7 +145,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<!-- Zaznamenané 404 -->
 	<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
 		<h2 style="margin:0"><?php esc_html_e( 'Zaznamenané 404', 'seo-boost' ); ?></h2>
-		<div style="display:flex;align-items:center;gap:8px;">
+		<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+			<label style="font-size:13px;color:#50575e;">
+				<?php esc_html_e( 'Typ přesměrování:', 'seo-boost' ); ?>
+				<select id="seob-404-http-code" style="margin-left:4px;height:28px;">
+					<option value="301" selected>301 – Trvalé (SEO)</option>
+					<option value="302">302 – Dočasné</option>
+					<option value="307">307 – Dočasné (zachová POST)</option>
+					<option value="308">308 – Trvalé (zachová POST)</option>
+				</select>
+			</label>
 			<label style="font-size:13px;color:#50575e;">
 				<?php esc_html_e( 'Min. zásahů:', 'seo-boost' ); ?>
 				<input type="number" id="seob-404-min-hits" value="1" min="1" max="9999"
