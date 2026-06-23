@@ -213,13 +213,20 @@ class SEOB_InternalLinks_LinkInserter {
 		if ( $new_window ) { $rel_parts[] = 'noopener'; }
 		$rel_attr = ! empty( $rel_parts ) ? ' rel="' . implode( ' ', $rel_parts ) . '"' : '';
 
-		$inserted = [];
-		$count    = 0;
+		$inserted      = [];
+		$count         = 0;
+		$used_titles   = []; // Deduplikace: každý titulek se prolinkuje max. jednou.
 
 		// Zpracujeme kandidáty postupně – každý snižuje zbývající limit.
 		foreach ( $candidates as $c ) {
 			if ( $count >= $limit ) {
 				break;
+			}
+
+			// Přeskočit pokud jsme stejný titulek již prolinkovali (různé CPT, stejný název).
+			$title_key = mb_strtolower( trim( $c['title'] ) );
+			if ( isset( $used_titles[ $title_key ] ) ) {
+				continue;
 			}
 
 			$url_escaped   = esc_url( $c['url'] );
@@ -236,6 +243,7 @@ class SEOB_InternalLinks_LinkInserter {
 			);
 
 			if ( $inserted_flag ) {
+				$used_titles[ $title_key ] = true;
 				$inserted[] = $c;
 				$count++;
 			}
