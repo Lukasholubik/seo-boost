@@ -163,7 +163,9 @@ class SEOB_KeywordBold_Processor {
 		$kw_used = array_fill_keys( $keywords, 0 );
 
 		// Zpracuj každý blok zvlášť – zachová Gutenberg strukturu.
-		$new_content = (string) preg_replace_callback(
+		// KRITICKÉ: preg_replace_callback může vrátit null při PCRE chybě.
+		// Null nesmí projít přes (string) cast – (string)null = "" → wp_update_post("") smaže obsah.
+		$raw_result  = preg_replace_callback(
 			'/(<!-- wp:(?!heading)[^\s>]*[^>]* -->)([\s\S]*?)(<!-- \/wp:(?!heading)[^\s>]*[^>]* -->)/i',
 			static function ( array $m ) use ( $keywords, $max_per_keyword, &$total_count, &$kw_used ): string {
 				$open = $m[1];
@@ -189,15 +191,24 @@ class SEOB_KeywordBold_Processor {
 			$content
 		);
 
+		// Null = PCRE selhání → vrátíme původní content, nezapisujeme nic.
+		if ( null === $raw_result ) {
+			return [ $content, 0 ];
+		}
+		$new_content = $raw_result;
+
 		// Fallback pro classic editor (žádné block komentáře).
 		if ( $total_count === 0 && strpos( $content, '<!-- wp:' ) === false ) {
 			foreach ( $keywords as $kw ) {
-				[ $new_content, $count ] = self::bold_in_html( $new_content, $kw, $max_per_keyword );
-				$total_count += $count;
+				[ $modified, $count ] = self::bold_in_html( $content, $kw, $max_per_keyword );
+				if ( $count > 0 ) {
+					$new_content  = $modified;
+					$total_count += $count;
+				}
 			}
 		}
 
-		return [ $new_content ?? $content, $total_count ];
+		return [ $new_content, $total_count ];
 	}
 
 	/**

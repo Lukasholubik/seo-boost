@@ -193,7 +193,8 @@ class SEOB_InternalLinks_Ajax {
 		$this->check_request();
 
 		$raw_ids   = isset( $_POST['post_ids'] ) ? (array) $_POST['post_ids'] : [];
-		$post_ids  = array_values( array_slice( array_filter( array_map( 'absint', $raw_ids ) ), 0, 200 ) );
+		// Cap na 50 – chrání před timeoutem (každý post = DB dotaz + wp_update_post + hooky).
+		$post_ids  = array_values( array_slice( array_filter( array_map( 'absint', $raw_ids ) ), 0, 50 ) );
 
 		if ( empty( $post_ids ) ) {
 			wp_send_json_error( [ 'message' => __( 'Žádné příspěvky nebyly vybrány.', 'seo-boost' ) ], 400 );
@@ -206,18 +207,27 @@ class SEOB_InternalLinks_Ajax {
 			'nofollow'   => isset( $_POST['nofollow'] )   && '1' === $_POST['nofollow'],
 		];
 
+		// Dovolíme delší běh pro dávkové operace.
+		wp_suspend_cache_invalidation( true );
+
 		$inserter = new SEOB_InternalLinks_LinkInserter( $max_links );
 		$results  = [];
 
 		foreach ( $post_ids as $post_id ) {
+			// Ověř oprávnění číst i editovat post (zabrání úniku názvů soukromých postů).
+			if ( ! current_user_can( 'edit_post', $post_id ) ) {
+				$results[] = [ 'id' => $post_id, 'title' => '', 'inserted' => 0, 'skipped' => 0, 'error' => 'Nedostatečná oprávnění.' ];
+				continue;
+			}
+
 			$post = get_post( $post_id );
 			if ( ! $post ) {
-				$results[] = [ 'id' => $post_id, 'title' => 'ID ' . $post_id, 'inserted' => 0, 'skipped' => 0, 'error' => 'Post nenalezen.' ];
+				$results[] = [ 'id' => $post_id, 'title' => '', 'inserted' => 0, 'skipped' => 0, 'error' => __( 'Post nenalezen.', 'seo-boost' ) ];
 				continue;
 			}
 
 			if ( $inserter->is_elementor( $post_id ) ) {
-				$results[] = [ 'id' => $post_id, 'title' => get_the_title( $post ), 'inserted' => 0, 'skipped' => 0, 'error' => 'Elementor stránka – přeskoč.' ];
+				$results[] = [ 'id' => $post_id, 'title' => get_the_title( $post ), 'inserted' => 0, 'skipped' => 0, 'error' => __( 'Elementor stránka – přeskoč.', 'seo-boost' ) ];
 				continue;
 			}
 
@@ -236,6 +246,8 @@ class SEOB_InternalLinks_Ajax {
 				'error'    => null,
 			];
 		}
+
+		wp_suspend_cache_invalidation( false );
 
 		$total_inserted = array_sum( array_column( $results, 'inserted' ) );
 

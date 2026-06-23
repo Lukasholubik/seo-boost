@@ -43,10 +43,11 @@
 	}
 
 	function updateBulkBar() {
+		if ( ! bulkBar || ! bulkResultsEl ) { return; }
 		var ids = getCheckedIds();
 		if ( ids.length > 0 ) {
 			bulkBar.style.display = '';
-			bulkCount.textContent = 'Vybráno: ' + ids.length + ' stránek';
+			if ( bulkCount ) { bulkCount.textContent = 'Vybráno: ' + ids.length + ' stránek'; }
 		} else {
 			bulkBar.style.display = 'none';
 			bulkResultsEl.style.display = 'none';

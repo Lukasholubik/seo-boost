@@ -259,40 +259,52 @@ class SEOB_InternalLinks_LinkInserter {
 		string $rel_attr,
 		bool  &$inserted_flag
 	): string {
-		// Rozřeže obsah na HTML tagy a text uzly.
-		$parts = preg_split( '/(<[^>]*>)/i', $content, -1, PREG_SPLIT_DELIM_CAPTURE );
+		// Splituje HTML na tagy, komentáře a text uzly.
+		// Pattern: komentáře (<!-- ... -->) | tagy (<...>) | text
+		// Uvozovky v atributech chrání před falešným splitem na > uvnitř hodnot.
+		$parts = preg_split(
+			'/(<!--[\s\S]*?-->|<(?:[^>"\']*|"[^"]*"|\'[^\']*\')*>)/i',
+			$content,
+			-1,
+			PREG_SPLIT_DELIM_CAPTURE
+		);
 		if ( ! is_array( $parts ) ) {
 			return $content;
 		}
 
+		// Zakázané elementy – v jejich obsahu keyword nenahrazujeme.
+		// Zahrnuje <script> a <style> (ochrana JSON-LD a CSS) i <a>, <h1-6>.
+		static $forbidden_open  = '/^<(script|style|a|h[1-6])\b/i';
+		static $forbidden_close = '/^<\/(script|style|a|h[1-6])\s*>/i';
+
 		$result          = '';
-		$forbidden_depth = 0; // Hloubka zakázaných elementů (a, h1-6)
+		$forbidden_depth = 0;
 		$inserted_flag   = false;
 
 		foreach ( $parts as $part ) {
+			// Komentáře a HTML tagy – nikdy do nich nevkládáme keyword.
 			if ( strncmp( $part, '<', 1 ) === 0 ) {
-				// HTML tag – sleduj kontext zakázaných elementů.
-				if ( preg_match( '/^<(a|h[1-6])\b/i', $part ) ) {
+				if ( preg_match( $forbidden_open, $part ) ) {
 					$forbidden_depth++;
-				} elseif ( preg_match( '/^<\/(a|h[1-6])>/i', $part ) ) {
+				} elseif ( preg_match( $forbidden_close, $part ) ) {
 					if ( $forbidden_depth > 0 ) {
 						$forbidden_depth--;
 					}
 				}
 				$result .= $part;
 			} else {
-				// Text uzel – hledej keyword jen pokud nejsme v zakázaném elementu
-				// a ještě jsme nepřidali link.
+				// Text uzel – hledej keyword jen pokud nejsme uvnitř zakázaného elementu.
 				if ( $forbidden_depth > 0 || $inserted_flag ) {
 					$result .= $part;
 				} else {
-					$new_part = (string) preg_replace_callback(
+					$new_part = preg_replace_callback(
 						'/(' . $title_pattern . ')/iu',
 						function ( array $m ) use ( $url, $target_attr, $rel_attr, &$inserted_flag ): string {
 							if ( $inserted_flag ) {
 								return $m[0];
 							}
 							$inserted_flag = true;
+							// $url already escaped via esc_url(); title text is from a text node (not attribute).
 							return '<a href="' . $url . '"' . $target_attr . $rel_attr . '>' . esc_html( $m[1] ) . '</a>';
 						},
 						$part
