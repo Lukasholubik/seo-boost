@@ -109,6 +109,9 @@ $seob_files = [
 	'includes/ContentDecay/Analyzer.php',
 	'includes/ContentDecay/Scanner.php',
 	'includes/ContentDecay/Ajax.php',
+	'includes/KeywordBold/Processor.php',
+	'includes/KeywordBold/Ajax.php',
+	'includes/KeywordBold/MetaBox.php',
 	'includes/Plugin.php',
 ];
 
