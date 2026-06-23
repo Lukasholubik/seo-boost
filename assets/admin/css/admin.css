@@ -496,6 +496,21 @@
 	font-size: 12px;
 }
 
+.seob-wrap .seob-group-actions {
+	margin-left: auto;
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.seob-wrap .seob-group-action-btn {
+	font-size: 11px !important;
+	padding: 0 8px !important;
+	min-height: 22px !important;
+	line-height: 20px !important;
+	white-space: nowrap;
+}
+
 .seob-wrap .seob-group-score-label {
 	color: #646970;
 	font-size: 12px;

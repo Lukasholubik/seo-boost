@@ -193,7 +193,7 @@ class SEOB_InternalLinks_Ajax {
 		$this->check_request();
 
 		$raw_ids   = isset( $_POST['post_ids'] ) ? (array) $_POST['post_ids'] : [];
-		// Cap na 50 – chrání před timeoutem (každý post = DB dotaz + wp_update_post + hooky).
+		// Max 50 na dávku – JS posílá více dávek sekvenčně, takže limit není problém pro velké výběry.
 		$post_ids  = array_values( array_slice( array_filter( array_map( 'absint', $raw_ids ) ), 0, 50 ) );
 
 		if ( empty( $post_ids ) ) {

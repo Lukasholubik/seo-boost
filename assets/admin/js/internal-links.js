@@ -62,54 +62,81 @@
 
 	if ( bulkBtn ) {
 		bulkBtn.addEventListener( 'click', function () {
-			var ids = getCheckedIds();
-			if ( ! ids.length ) { return; }
+			var allIds = getCheckedIds();
+			if ( ! allIds.length ) { return; }
 
-			bulkBtn.disabled    = true;
-			bulkBtn.textContent = '⏳ Vkládám…';
+			// Rozdělit na dávky po 50 (PHP limit = ochrana před timeoutem)
+			var BATCH_SIZE   = 50;
+			var batches      = [];
+			for ( var i = 0; i < allIds.length; i += BATCH_SIZE ) {
+				batches.push( allIds.slice( i, i + BATCH_SIZE ) );
+			}
+
+			bulkBtn.disabled = true;
 			bulkResultsEl.style.display = 'none';
 
-			var fd = new FormData();
-			fd.append( 'action', 'seob_links_bulk_insert' );
-			fd.append( 'nonce', seobData.nonce );
-			fd.append( 'max_links', bulkMaxEl ? bulkMaxEl.value : '3' );
-			fd.append( 'nofollow',   bulkNofollowEl && bulkNofollowEl.checked ? '1' : '0' );
-			fd.append( 'new_window', bulkNewWinEl   && bulkNewWinEl.checked   ? '1' : '0' );
-			ids.forEach( function ( id ) { fd.append( 'post_ids[]', id ); } );
+			var totalInserted = 0;
+			var allResults    = [];
+			var batchIndex    = 0;
 
-			fetch( seobData.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: fd } )
-				.then( function ( r ) { return r.json(); } )
-				.then( function ( d ) {
+			function processBatch() {
+				if ( batchIndex >= batches.length ) {
+					// Všechny dávky hotovy
 					bulkBtn.disabled    = false;
 					bulkBtn.textContent = '🔗 Vložit linky do vybraných';
 
-					if ( ! d.success ) {
-						bulkResultsEl.innerHTML = '<span style="color:#d63638">✗ ' + esc( d.data && d.data.message ? d.data.message : 'Chyba.' ) + '</span>';
-						bulkResultsEl.style.display = '';
-						return;
-					}
+					var errors    = allResults.filter( function ( r ) { return r.error; } );
+					var withLinks = allResults.filter( function ( r ) { return ! r.error && r.inserted > 0; } );
+					var skipped   = allResults.filter( function ( r ) { return ! r.error && r.inserted === 0; } );
 
-					var html = '<strong>✅ Hotovo: vloženo ' + d.data.total_inserted + ' odkazů do ' + d.data.total_posts + ' stránek</strong><ul style="margin:6px 0 0 16px;padding:0">';
-					d.data.results.forEach( function ( r ) {
-						var icon = r.error ? '✗' : ( r.inserted > 0 ? '✓' : '—' );
-						var color = r.error ? '#d63638' : ( r.inserted > 0 ? '#2d7738' : '#646970' );
-						html += '<li style="color:' + color + '">' + icon + ' ' + esc( r.title ) + ': ' +
-							( r.error ? esc( r.error ) : r.inserted + ' vloženo, ' + r.skipped + ' přeskočeno' ) + '</li>';
-					} );
-					html += '</ul>';
+					var html = '<strong>✅ Hotovo: vloženo ' + totalInserted + ' odkazů do ' + withLinks.length + ' stránek</strong>';
+					if ( skipped.length ) {
+						html += '&ensp;<span style="color:#646970">— ' + skipped.length + ' přeskočeno (již mají linky)</span>';
+					}
+					if ( errors.length ) {
+						html += '<ul style="margin:6px 0 0 16px;padding:0">';
+						errors.forEach( function ( r ) {
+							html += '<li style="color:#d63638">✗ ' + esc( r.title ) + ': ' + esc( r.error ) + '</li>';
+						} );
+						html += '</ul>';
+					}
 
 					bulkResultsEl.innerHTML    = html;
 					bulkResultsEl.style.display = '';
 
-					// Obnovit výsledky po vložení
 					setTimeout( function () { loadResults(); }, 500 );
-				} )
-				.catch( function () {
-					bulkBtn.disabled    = false;
-					bulkBtn.textContent = '🔗 Vložit linky do vybraných';
-					bulkResultsEl.innerHTML = '<span style="color:#d63638">✗ Chyba sítě.</span>';
-					bulkResultsEl.style.display = '';
-				} );
+					return;
+				}
+
+				bulkBtn.textContent = '⏳ Dávka ' + ( batchIndex + 1 ) + ' / ' + batches.length + '…';
+
+				var fd = new FormData();
+				fd.append( 'action', 'seob_links_bulk_insert' );
+				fd.append( 'nonce', seobData.nonce );
+				fd.append( 'max_links', bulkMaxEl ? bulkMaxEl.value : '3' );
+				fd.append( 'nofollow',   bulkNofollowEl && bulkNofollowEl.checked ? '1' : '0' );
+				fd.append( 'new_window', bulkNewWinEl   && bulkNewWinEl.checked   ? '1' : '0' );
+				batches[ batchIndex ].forEach( function ( id ) { fd.append( 'post_ids[]', id ); } );
+
+				fetch( seobData.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: fd } )
+					.then( function ( r ) { return r.json(); } )
+					.then( function ( d ) {
+						if ( d.success ) {
+							totalInserted += d.data.total_inserted;
+							allResults     = allResults.concat( d.data.results );
+						}
+						batchIndex++;
+						processBatch();
+					} )
+					.catch( function () {
+						bulkBtn.disabled    = false;
+						bulkBtn.textContent = '🔗 Vložit linky do vybraných';
+						bulkResultsEl.innerHTML = '<span style="color:#d63638">✗ Chyba sítě (dávka ' + ( batchIndex + 1 ) + ').</span>';
+						bulkResultsEl.style.display = '';
+					} );
+			}
+
+			processBatch();
 		} );
 	}
 
@@ -130,7 +157,7 @@
 	}
 
 
-	function makeCheckboxCell( pageId, isOrphan ) {
+	function makeCheckboxCell( pageId, isOrphan, hasProblem, linkStatus ) {
 		var td = document.createElement( 'td' );
 		td.style.width = '28px';
 		td.style.paddingRight = '4px';
@@ -139,6 +166,8 @@
 		cb.className = 'seob-links-row-check';
 		cb.dataset.id = pageId;
 		cb.dataset.isOrphan = isOrphan ? '1' : '0';
+		cb.dataset.hasProblem = hasProblem ? '1' : '0';
+		if ( linkStatus ) { cb.dataset.linkStatus = linkStatus; }
 		cb.addEventListener( 'change', updateBulkBar );
 		td.appendChild( cb );
 		return td;
@@ -226,7 +255,7 @@
 	 * Vytvoří skupinový kontejner s toggle tlačítkem.
 	 * Vrátí { groupEl, tbody }.
 	 */
-	function createGroup( label, countText, colHeaders ) {
+	function createGroup( label, countText, colHeaders, groupActions ) {
 		var groupEl  = document.createElement( 'div' );
 		groupEl.className = 'seob-audit-group';
 
@@ -237,6 +266,24 @@
 			'<span class="seob-group-arrow">&#9658;</span>' +
 			'<span class="seob-group-title">' + escHtml( label ) + '</span>' +
 			'<span class="seob-group-count">' + escHtml( countText ) + '</span>';
+
+		if ( groupActions && groupActions.length ) {
+			var actionsEl = document.createElement( 'span' );
+			actionsEl.className = 'seob-group-actions';
+			groupActions.forEach( function ( action ) {
+				var btn = document.createElement( 'button' );
+				btn.type = 'button';
+				btn.className = 'button button-small seob-group-action-btn';
+				btn.textContent = action.label;
+				btn.addEventListener( 'click', function ( e ) {
+					e.stopPropagation();
+					action.onClick( groupEl );
+				} );
+				actionsEl.appendChild( btn );
+			} );
+			toggleBtn.appendChild( actionsEl );
+		}
+
 		groupEl.appendChild( toggleBtn );
 
 		var body = document.createElement( 'div' );
@@ -280,7 +327,30 @@
 			var g = createGroup(
 				group.label,
 				group.items.length + ' osamocených',
-				[ '', 'Stránka', 'Stav odchozích odkazů', 'Návrhy na prolinkování (odkázat z)' ]
+				[ '', 'Stránka', 'Stav odchozích odkazů', 'Návrhy na prolinkování (odkázat z)' ],
+				[
+					{
+						label: 'Vybrat vše',
+						onClick: function ( groupEl ) {
+							groupEl.querySelectorAll( '.seob-links-row-check' ).forEach( function ( cb ) { cb.checked = true; } );
+							updateBulkBar();
+						}
+					},
+					{
+						label: '↑ Chybějící',
+						onClick: function ( groupEl ) {
+							groupEl.querySelectorAll( '.seob-links-row-check[data-link-status="low"]' ).forEach( function ( cb ) { cb.checked = true; } );
+							updateBulkBar();
+						}
+					},
+					{
+						label: '↓ Přebývající',
+						onClick: function ( groupEl ) {
+							groupEl.querySelectorAll( '.seob-links-row-check[data-link-status="high"]' ).forEach( function ( cb ) { cb.checked = true; } );
+							updateBulkBar();
+						}
+					}
+				]
 			);
 
 			if ( ! group.items.length ) {
@@ -312,7 +382,7 @@
 					var tdSugg = document.createElement( 'td' );
 					renderSuggestions( tdSugg, page.suggestions );
 
-					tr.appendChild( makeCheckboxCell( page.id, true ) );
+					tr.appendChild( makeCheckboxCell( page.id, true, page.link_status === 'low' || page.link_status === 'high', page.link_status ) );
 					tr.appendChild( tdTitle );
 					tr.appendChild( linkStatusCell( page ) );
 					tr.appendChild( tdSugg );
@@ -350,7 +420,30 @@
 			var g = createGroup(
 				group.label,
 				countText,
-				[ '', 'Stránka', 'Příchozí', 'Odchozí', 'Stav odkazů' ]
+				[ '', 'Stránka', 'Příchozí', 'Odchozí', 'Stav odkazů' ],
+				[
+					{
+						label: 'Vybrat vše',
+						onClick: function ( groupEl ) {
+							groupEl.querySelectorAll( '.seob-links-row-check' ).forEach( function ( cb ) { cb.checked = true; } );
+							updateBulkBar();
+						}
+					},
+					{
+						label: '↑ Chybějící',
+						onClick: function ( groupEl ) {
+							groupEl.querySelectorAll( '.seob-links-row-check[data-link-status="low"]' ).forEach( function ( cb ) { cb.checked = true; } );
+							updateBulkBar();
+						}
+					},
+					{
+						label: '↓ Přebývající',
+						onClick: function ( groupEl ) {
+							groupEl.querySelectorAll( '.seob-links-row-check[data-link-status="high"]' ).forEach( function ( cb ) { cb.checked = true; } );
+							updateBulkBar();
+						}
+					}
+				]
 			);
 
 			if ( ! group.items.length ) {
@@ -388,7 +481,8 @@
 					var tdOut = document.createElement( 'td' );
 					tdOut.textContent = page.outlinks;
 
-					tr.appendChild( makeCheckboxCell( page.id, false ) );
+					var hasProblem = page.link_status === 'low' || page.link_status === 'high';
+					tr.appendChild( makeCheckboxCell( page.id, false, hasProblem, page.link_status ) );
 					tr.appendChild( tdTitle );
 					tr.appendChild( tdIn );
 					tr.appendChild( tdOut );

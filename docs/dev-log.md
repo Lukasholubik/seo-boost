@@ -7,6 +7,25 @@
 
 ## Záznamy
 
+### 2026-06-23 – Internal Links: bulk insert – dávkování na klientovi
+
+**Soubory:** `assets/admin/js/internal-links.js`, `includes/InternalLinks/Ajax.php`
+
+- PHP má limit 50 postů/request (timeout ochrana) → JS nyní rozdělí výběr na dávky po 50 a posílá je sekvenčně
+- Tlačítko během zpracování ukazuje progres: "⏳ Dávka 3 / 10…"
+- Výsledný souhrn: celkový počet vložených odkazů + počet přeskočených; chyby vypíše jednotlivě (ne 489 řádků OK)
+- Dříve se zpracovalo jen prvních 50 i při výběru všech 489 stránek
+
+### 2026-06-23 – Internal Links: per-group výběr + výběr problematických
+
+**Soubory:** `assets/admin/js/internal-links.js`, `assets/admin/css/admin.css`
+
+- `createGroup()` přijímá nový volitelný param `groupActions` (pole `{ label, onClick }`) → tlačítka se renderují vpravo v záhlaví každé skupiny, klik neotevírá/nezavírá accordion (`stopPropagation`)
+- Sekce **Osamocené stránky**: každá záložka (Slovníček, Stránky…) má tlačítko **Vybrat vše** – vybere všechny checkboxy v dané skupině
+- Sekce **Všechny stránky**: každá záložka má **Vybrat vše** + **Vybrat problematické** – druhé označí pouze řádky kde `link_status === 'low' || 'high'`
+- `makeCheckboxCell()` rozšířen o `hasProblem` → `data-has-problem="1"` na checkboxech s problémovým stavem
+- CSS: přidáno `.seob-group-actions` (flex, margin-left: auto) a `.seob-group-action-btn` (malá tlačítka 11px)
+
 ### 2026-06-23 – v0.9.8 – Penetrační audit Redirect Manageru: 8 nálezů opraveno
 
 | # | Závažnost | Nález | Oprava |
