@@ -207,71 +207,101 @@ class SEOB_InternalLinks_LinkInserter {
 		$new_window = ! empty( $options['new_window'] );
 		$nofollow   = ! empty( $options['nofollow'] );
 
-		// Sestavíme atributy odkazů
 		$target_attr = $new_window ? ' target="_blank"' : '';
 		$rel_parts   = [];
 		if ( $nofollow )   { $rel_parts[] = 'nofollow'; }
 		if ( $new_window ) { $rel_parts[] = 'noopener'; }
 		$rel_attr = ! empty( $rel_parts ) ? ' rel="' . implode( ' ', $rel_parts ) . '"' : '';
 
-		// Chráníme existující <a>…</a>
-		$anchors  = [];
-		$modified = preg_replace_callback(
-			'/<a\b[^>]*>.*?<\/a>/is',
-			function ( $m ) use ( &$anchors ) {
-				$key             = "\x00A" . count( $anchors ) . "\x00";
-				$anchors[ $key ] = $m[0];
-				return $key;
-			},
-			$content
-		) ?? $content;
-
-		// Chráníme nadpisy
-		$headings = [];
-		$modified = preg_replace_callback(
-			'/<h[1-6]\b[^>]*>.*?<\/h[1-6]>/is',
-			function ( $m ) use ( &$headings ) {
-				$key               = "\x00H" . count( $headings ) . "\x00";
-				$headings[ $key ]  = $m[0];
-				return $key;
-			},
-			$modified
-		) ?? $modified;
-
 		$inserted = [];
 		$count    = 0;
 
+		// Zpracujeme kandidáty postupně – každý snižuje zbývající limit.
 		foreach ( $candidates as $c ) {
 			if ( $count >= $limit ) {
 				break;
 			}
 
-			$pattern = '/(' . preg_quote( $c['title'], '/' ) . ')/iu';
-			$done    = false;
+			$url_escaped   = esc_url( $c['url'] );
+			$title_pattern = preg_quote( $c['title'], '/' );
+			$inserted_flag = false;
 
-			$new = preg_replace_callback(
-				$pattern,
-				function ( $m ) use ( $c, $target_attr, $rel_attr, &$done ) {
-					if ( $done ) {
-						return $m[0];
-					}
-					$done = true;
-					return '<a href="' . esc_url( $c['url'] ) . '"' . $target_attr . $rel_attr . '>' . esc_html( $m[1] ) . '</a>';
-				},
-				$modified
+			$content = $this->inject_single_link(
+				$content,
+				$title_pattern,
+				$url_escaped,
+				$target_attr,
+				$rel_attr,
+				$inserted_flag
 			);
 
-			if ( $done && null !== $new && $new !== $modified ) {
-				$modified   = $new;
+			if ( $inserted_flag ) {
 				$inserted[] = $c;
 				$count++;
 			}
 		}
 
-		// Obnovíme chráněné bloky
-		$result = str_replace( array_keys( $anchors ), array_values( $anchors ), $modified );
-		$result = str_replace( array_keys( $headings ), array_values( $headings ), $result );
+		return [ 'content' => $content, 'inserted' => $inserted ];
+	}
 
-		return [ 'content' => $result, 'inserted' => $inserted ];
+	/**
+	 * Vloží jeden odkaz do obsahu, přičemž keyword hledá POUZE v textových uzlech –
+	 * nikdy ne uvnitř HTML tagů nebo atributů (ochrana před vkládáním do href hodnot).
+	 *
+	 * Funguje: HTML se rozřeže na tagy a text části, keyword se nahradí jen v textu,
+	 * přičemž se sleduje hloubka zakázaných elementů (<a>, <h1-6>, <strong>, <em>).
+	 */
+	private function inject_single_link(
+		string $content,
+		string $title_pattern,
+		string $url,
+		string $target_attr,
+		string $rel_attr,
+		bool  &$inserted_flag
+	): string {
+		// Rozřeže obsah na HTML tagy a text uzly.
+		$parts = preg_split( '/(<[^>]*>)/i', $content, -1, PREG_SPLIT_DELIM_CAPTURE );
+		if ( ! is_array( $parts ) ) {
+			return $content;
+		}
+
+		$result          = '';
+		$forbidden_depth = 0; // Hloubka zakázaných elementů (a, h1-6)
+		$inserted_flag   = false;
+
+		foreach ( $parts as $part ) {
+			if ( strncmp( $part, '<', 1 ) === 0 ) {
+				// HTML tag – sleduj kontext zakázaných elementů.
+				if ( preg_match( '/^<(a|h[1-6])\b/i', $part ) ) {
+					$forbidden_depth++;
+				} elseif ( preg_match( '/^<\/(a|h[1-6])>/i', $part ) ) {
+					if ( $forbidden_depth > 0 ) {
+						$forbidden_depth--;
+					}
+				}
+				$result .= $part;
+			} else {
+				// Text uzel – hledej keyword jen pokud nejsme v zakázaném elementu
+				// a ještě jsme nepřidali link.
+				if ( $forbidden_depth > 0 || $inserted_flag ) {
+					$result .= $part;
+				} else {
+					$new_part = (string) preg_replace_callback(
+						'/(' . $title_pattern . ')/iu',
+						function ( array $m ) use ( $url, $target_attr, $rel_attr, &$inserted_flag ): string {
+							if ( $inserted_flag ) {
+								return $m[0];
+							}
+							$inserted_flag = true;
+							return '<a href="' . $url . '"' . $target_attr . $rel_attr . '>' . esc_html( $m[1] ) . '</a>';
+						},
+						$part
+					);
+					$result .= ( null !== $new_part ) ? $new_part : $part;
+				}
+			}
+		}
+
+		return $result;
 	}
 }
