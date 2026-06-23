@@ -158,20 +158,30 @@ class SEOB_KeywordBold_Processor {
 	public static function process_content( string $content, array $keywords, int $max_per_keyword = 1 ): array {
 		$total_count = 0;
 
+		// Sleduj kolikrát bylo každé KW již použito PŘES VŠECHNY BLOKY.
+		// Klíč = kw, hodnota = počet použití. Sdíleno přes &reference.
+		$kw_used = array_fill_keys( $keywords, 0 );
+
 		// Zpracuj každý blok zvlášť – zachová Gutenberg strukturu.
 		$new_content = (string) preg_replace_callback(
 			'/(<!-- wp:(?!heading)[^\s>]*[^>]* -->)([\s\S]*?)(<!-- \/wp:(?!heading)[^\s>]*[^>]* -->)/i',
-			static function ( array $m ) use ( $keywords, $max_per_keyword, &$total_count ): string {
-				$open    = $m[1];
-				$body    = $m[2];
-				$close   = $m[3];
+			static function ( array $m ) use ( $keywords, $max_per_keyword, &$total_count, &$kw_used ): string {
+				$open = $m[1];
+				$body = $m[2];
+				$close = $m[3];
 
 				foreach ( $keywords as $kw ) {
 					if ( '' === trim( $kw ) ) {
 						continue;
 					}
-					[ $body, $count ] = SEOB_KeywordBold_Processor::bold_in_html( $body, $kw, $max_per_keyword );
-					$total_count += $count;
+					// Kolik výskytů zbývá pro toto KW v tomto a dalších blocích.
+					$remaining = $max_per_keyword - ( $kw_used[ $kw ] ?? 0 );
+					if ( $remaining <= 0 ) {
+						continue;
+					}
+					[ $body, $count ] = SEOB_KeywordBold_Processor::bold_in_html( $body, $kw, $remaining );
+					$kw_used[ $kw ] = ( $kw_used[ $kw ] ?? 0 ) + $count;
+					$total_count    += $count;
 				}
 
 				return $open . $body . $close;
