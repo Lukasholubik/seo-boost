@@ -131,7 +131,7 @@
 				'<td><input type="checkbox" class="seob-r-check" data-id="' + esc( item.id ) + '"></td>' +
 				'<td>' + esc( item.target_url ) + '</td>' +
 				'<td>' + esc( item.redirect_to ) + '</td>' +
-				'<td>' + ( item.http_status || 301 ) + '</td>' +
+				'<td>' + ( parseInt( item.http_status, 10 ) || 301 ) + '</td>' +
 				'<td><button type="button" class="button seob-delete-redirect">Smazat</button></td>';
 
 			tr.querySelector( '.seob-r-check' ).addEventListener( 'change', updateRedirectsBulkBar );
@@ -474,7 +474,7 @@
 
 			if ( ! res.success ) {
 				importResult.style.display = 'block';
-				importResult.innerHTML = '<span style="color:#d63638;">' + ( res.data && res.data.message ? res.data.message : 'Chyba při načítání.' ) + '</span>';
+				importResult.innerHTML = '<span style="color:#d63638;">' + esc( res.data && res.data.message ? res.data.message : 'Chyba při načítání.' ) + '</span>';
 				return;
 			}
 
@@ -494,7 +494,7 @@
 				var tr = document.createElement( 'tr' );
 				tr.style.background = r.valid ? '' : '#fff5f5';
 				tr.innerHTML =
-					'<td style="color:#999;">' + r.line + '</td>' +
+					'<td style="color:#999;">' + ( parseInt( r.line, 10 ) || '' ) + '</td>' +
 					'<td style="font-family:monospace;font-size:11px;word-break:break-all;">' + esc( r.source || r.raw_source ) + '</td>' +
 					'<td style="font-family:monospace;font-size:11px;word-break:break-all;">' + esc( r.target || r.raw_target ) + '</td>' +
 					'<td>' + ( r.valid

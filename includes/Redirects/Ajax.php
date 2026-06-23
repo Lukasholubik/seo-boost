@@ -159,14 +159,18 @@ class SEOB_Redirects_Ajax {
 		$this->check_request();
 
 		$raw_ids = isset( $_POST['ids'] ) ? (array) $_POST['ids'] : [];
-		$ids     = array_filter( array_map( 'absint', $raw_ids ) );
+		$ids     = array_values( array_filter( array_map( 'absint', $raw_ids ) ) );
 
 		if ( empty( $ids ) ) {
 			wp_send_json_error( [ 'message' => __( 'Žádná ID nebyla zadána.', 'seo-boost' ) ], 400 );
+			return;
 		}
 
+		// Cap: max 500 IDs per request – prevents oversized IN clause / max_allowed_packet issues.
+		$ids = array_slice( $ids, 0, 500 );
+
 		global $wpdb;
-		$table       = SEOB_Database::links_table();
+		$table        = SEOB_Database::links_table();
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 
 		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -189,11 +193,15 @@ class SEOB_Redirects_Ajax {
 		$this->check_request();
 
 		$raw_ids = isset( $_POST['ids'] ) ? (array) $_POST['ids'] : [];
-		$ids     = array_filter( array_map( 'absint', $raw_ids ) );
+		$ids     = array_values( array_filter( array_map( 'absint', $raw_ids ) ) );
 
 		if ( empty( $ids ) ) {
 			wp_send_json_error( [ 'message' => __( 'Žádná ID nebyla zadána.', 'seo-boost' ) ], 400 );
+			return;
 		}
+
+		// Cap: max 500 IDs per request.
+		$ids = array_slice( $ids, 0, 500 );
 
 		$redirect_to   = isset( $_POST['redirect_to'] ) ? wp_unslash( $_POST['redirect_to'] ) : '';
 		$target        = $this->validate_redirect_target( $redirect_to );
@@ -205,25 +213,22 @@ class SEOB_Redirects_Ajax {
 
 		if ( null === $target ) {
 			wp_send_json_error( [ 'message' => __( 'Cílová adresa není platná.', 'seo-boost' ) ], 400 );
+			return;
 		}
 
+		// Jeden hromadný UPDATE místo N jednotlivých – rychlejší a transakčně konzistentní.
 		global $wpdb;
 		$table        = SEOB_Database::links_table();
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		$saved        = 0;
 
-		foreach ( $ids as $id ) {
-			$result = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-				$table,
-				[ 'redirect_to' => $target, 'http_status' => $http_code ],
-				[ 'id' => $id ],
-				[ '%s', '%d' ],
-				[ '%d' ]
-			);
-			if ( $result !== false ) {
-				$saved++;
-			}
-		}
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"UPDATE {$table} SET redirect_to = %s, http_status = %d WHERE id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				array_merge( [ $target, $http_code ], $ids )
+			)
+		);
+
+		$saved = (int) $wpdb->rows_affected;
 
 		SEOB_Redirect_Manager::invalidate_cache();
 
@@ -245,8 +250,9 @@ class SEOB_Redirects_Ajax {
 		global $wpdb;
 		$table = SEOB_Database::links_table();
 
+		// Cap export na 5 000 řádků – chrání před OOM při obřích instalacích.
 		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT target_url, redirect_to, http_status FROM {$table} WHERE redirect_to IS NOT NULL AND redirect_to != '' ORDER BY id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT target_url, redirect_to, http_status FROM {$table} WHERE redirect_to IS NOT NULL AND redirect_to != '' ORDER BY id ASC LIMIT 5000", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
 
@@ -257,14 +263,24 @@ class SEOB_Redirects_Ajax {
 			$lines[] = '';
 
 			foreach ( $rows as $row ) {
-				$src    = ltrim( $row['target_url'], '/' );
-				$dst    = $row['redirect_to'];
-				$code   = (int) ( $row['http_status'] ?: 301 );
-				// Relativní cíl → absolutní URL pro .htaccess
+				$src  = ltrim( $row['target_url'], '/' );
+				$dst  = $row['redirect_to'];
+				$code = (int) ( $row['http_status'] ?: 301 );
+
+				// Escapuj PCRE metacharaktery ve zdrojové cestě pro RewriteRule pattern.
+				// addslashes() escapuje pouze \, ', " – nestačí pro mod_rewrite regex.
+				$src_escaped = preg_quote( $src, '#' );
+
+				// Relativní cíl → absolutní URL pro .htaccess.
 				if ( str_starts_with( $dst, '/' ) ) {
 					$dst = home_url( $dst );
 				}
-				$lines[] = 'RewriteRule ^' . addslashes( $src ) . '$ ' . $dst . ' [R=' . $code . ',L]';
+
+				// Sanitizuj $dst – odstraň znaky které by mohly přerušit direktivu
+				// (newline, tab, mezera mimo URL, #). Tyto znaky nesmí být v cíli.
+				$dst = preg_replace( '/[\x00-\x1F\x7F\s#]/', '', $dst );
+
+				$lines[] = 'RewriteRule ^' . $src_escaped . '$ ' . $dst . ' [R=' . $code . ',L]';
 			}
 
 			$content  = implode( "\n", $lines );
@@ -598,7 +614,7 @@ class SEOB_Redirects_Ajax {
 			return null;
 		}
 
-		// Relativní cesta – normalizuj a povol.
+		// Relativní cesta – normalizuj a sanitizuj.
 		if ( '/' === substr( $url, 0, 1 ) ) {
 			$path = '/' . ltrim( $url, '/' );
 
@@ -606,7 +622,11 @@ class SEOB_Redirects_Ajax {
 				$path = rtrim( $path, '/' );
 			}
 
-			return $path;
+			// Odstraň newlines, tabulátory a další kontrolní znaky které by mohly
+			// injektovat direktivy při exportu do .htaccess nebo přerušit HTTP hlavičku.
+			$path = (string) preg_replace( '/[\x00-\x1F\x7F]/', '', $path );
+
+			return $path ?: null;
 		}
 
 		$sanitized = esc_url_raw( $url );

@@ -7,6 +7,23 @@
 
 ## Záznamy
 
+### 2026-06-23 – v0.9.8 – Penetrační audit Redirect Manageru: 8 nálezů opraveno
+
+| # | Závažnost | Nález | Oprava |
+|---|-----------|-------|--------|
+| 1 | 🔴 Kritická | `http_status` uložen v DB ale nikdy nečten – všechna přesměrování servírována jako 301 | `build_redirect_map()` načítá `http_status`; `find_redirect()` vrací `[url, code]`; `handle_request()` předává code do `wp_safe_redirect()` |
+| 2 | 🔴 Vysoká | `addslashes()` pro `.htaccess` `RewriteRule` pattern – neescapuje PCRE metacharaktery (`.`, `*`, `(`, `)`) | Nahrazeno `preg_quote($src, '#')` |
+| 3 | 🟡 Střední | `$dst` zapsán raw do `.htaccess` – newline/space v relativní cestě → injekce direktiv | `preg_replace('/[\x00-\x1F\x7F\s#]/', '', $dst)` v exportu; `preg_replace` v `validate_redirect_target()` relativní větvi |
+| 4 | 🟡 Střední | Chybí `return` po `wp_send_json_error()` v `bulk_delete` a `bulk_save` | Přidány `return` za každý `wp_send_json_error()` |
+| 5 | 🟡 Střední | `bulk_delete`/`bulk_save` bez cap → DELETE/UPDATE s tisíci ID → OOM / max_allowed_packet | `array_slice($ids, 0, 500)` |
+| 6 | 🟡 Střední | `bulk_save` N×UPDATE místo jednoho IN clause – timeout + partial write bez transakce | Přepsáno na jeden `UPDATE ... WHERE id IN (...)` |
+| 7 | 🟡 Střední | `export_redirects` bez LIMIT → full table load → OOM | `LIMIT 5000` |
+| 8 | 🟠 Nízká | `item.http_status`, `res.data.message`, `r.line` vloženy do `innerHTML` bez escapování | `parseInt()` + `esc()` |
+
+**Upravené soubory:** `Redirects/RedirectManager.php`, `Redirects/Ajax.php`, `assets/admin/js/redirects.js`, `seo-boost.php`
+
+---
+
 ### 2026-06-23 – v0.9.4 – Redirect Manager: výchozí cíl, rychlé cíle, bulk akce, 404 filtr, export
 
 **Co bylo přidáno:**

@@ -1,6 +1,6 @@
 <?php
 /**
- * Zachytává 404 požadavky a aplikuje uložená 301 přesměrování.
+ * Zachytává požadavky a aplikuje uložená přesměrování.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -31,10 +31,10 @@ class SEOB_Redirect_Manager {
 		$settings = SEOB_Settings::get( SEOB_Settings::REDIRECT );
 		$path     = $this->normalize_path( $_SERVER['REQUEST_URI'] ?? '/' );
 
-		$redirect_to = $this->find_redirect( $path );
+		$redirect = $this->find_redirect( $path );
 
-		if ( null !== $redirect_to ) {
-			wp_safe_redirect( $redirect_to, 301 );
+		if ( null !== $redirect ) {
+			wp_safe_redirect( $redirect['url'], $redirect['code'] );
 			exit;
 		}
 
@@ -64,9 +64,12 @@ class SEOB_Redirect_Manager {
 	const CACHE_KEY = 'seob_redirects_map';
 
 	/**
-	 * Najde aktivní přesměrování pro danou cestu (mapa je cachovaná v transientu).
+	 * Najde aktivní přesměrování pro danou cestu.
+	 * Vrátí ['url' => string, 'code' => int] nebo null.
+	 *
+	 * @return array{url: string, code: int}|null
 	 */
-	private function find_redirect( string $path ): ?string {
+	private function find_redirect( string $path ): ?array {
 		$map = get_transient( self::CACHE_KEY );
 
 		if ( ! is_array( $map ) ) {
@@ -78,7 +81,8 @@ class SEOB_Redirect_Manager {
 	}
 
 	/**
-	 * Načte všechna aktivní přesměrování z DB do pole target_url => redirect_to.
+	 * Načte všechna aktivní přesměrování z DB do mapy target_url => [url, code].
+	 * Načítá i http_status aby byl respektován typ přesměrování (301/302/307/308).
 	 */
 	private function build_redirect_map(): array {
 		global $wpdb;
@@ -86,13 +90,20 @@ class SEOB_Redirect_Manager {
 		$links_table = SEOB_Database::links_table();
 
 		$rows = $wpdb->get_results(
-			"SELECT target_url, redirect_to FROM {$links_table} WHERE redirect_to IS NOT NULL AND redirect_to != ''" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT target_url, redirect_to, http_status FROM {$links_table} WHERE redirect_to IS NOT NULL AND redirect_to != ''" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		);
 
 		$map = [];
 
 		foreach ( $rows as $row ) {
-			$map[ $row->target_url ] = $row->redirect_to;
+			$code = (int) $row->http_status;
+			if ( ! in_array( $code, [ 301, 302, 307, 308 ], true ) ) {
+				$code = 301;
+			}
+			$map[ $row->target_url ] = [
+				'url'  => $row->redirect_to,
+				'code' => $code,
+			];
 		}
 
 		return $map;
