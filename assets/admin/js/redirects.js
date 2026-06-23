@@ -13,9 +13,12 @@
 	var sourceInput    = document.getElementById( 'seob-new-source' );
 	var targetInput    = document.getElementById( 'seob-new-target' );
 
-	// Rychlé cíle
-	var loadPagesBtn   = document.getElementById( 'seob-load-pages' );
-	var pagesList      = document.getElementById( 'seob-pages-list' );
+	// Rychlé cíle – horní sekce
+	var loadPagesBtn     = document.getElementById( 'seob-load-pages' );
+	var pagesList        = document.getElementById( 'seob-pages-list' );
+	// Rychlé cíle – 404 sekce
+	var load404PagesBtn  = document.getElementById( 'seob-404-load-pages' );
+	var pages404List     = document.getElementById( 'seob-404-pages-list' );
 
 	// Export
 	var exportCsvBtn   = document.getElementById( 'seob-export-csv' );
@@ -247,11 +250,24 @@
 
 	// ── Rychlé cíle ──────────────────────────────────────────────────────────
 
+	// Rychlé cíle – horní formulář
 	document.querySelectorAll( '.seob-quick-target' ).forEach( function ( btn ) {
 		btn.addEventListener( 'click', function () {
 			if ( targetInput ) { targetInput.value = btn.dataset.url; }
 			if ( f404BulkTarget ) { f404BulkTarget.value = btn.dataset.url; }
 		} );
+	} );
+
+	// Rychlé cíle – 404 sekce (vyplní všechny row inputy + bulk target)
+	function fill404Target( url ) {
+		notFoundBody.querySelectorAll( '.seob-redirect-target' ).forEach( function ( inp ) {
+			inp.value = url;
+		} );
+		if ( f404BulkTarget ) { f404BulkTarget.value = url; }
+	}
+
+	document.querySelectorAll( '.seob-404-quick-target' ).forEach( function ( btn ) {
+		btn.addEventListener( 'click', function () { fill404Target( btn.dataset.url ); } );
 	} );
 
 	if ( loadPagesBtn ) {
@@ -286,6 +302,32 @@
 			} ).catch( function () {
 				loadPagesBtn.disabled    = false;
 				loadPagesBtn.textContent = '↓ Načíst stránky webu';
+			} );
+		} );
+	}
+
+	// Načíst stránky pro 404 sekci
+	if ( load404PagesBtn ) {
+		load404PagesBtn.addEventListener( 'click', function () {
+			load404PagesBtn.disabled    = true;
+			load404PagesBtn.textContent = '⏳ Načítám…';
+			ajax( 'seob_redirect_get_pages', {} ).then( function ( r ) {
+				load404PagesBtn.style.display = 'none';
+				if ( ! r.success || ! r.data.length ) { return; }
+				r.data.forEach( function ( page ) {
+					if ( page.url === '/' ) { return; } // HP je statické tlačítko
+					var btn = document.createElement( 'button' );
+					btn.type          = 'button';
+					btn.className     = 'button seob-404-quick-target';
+					btn.dataset.url   = page.url;
+					btn.style.cssText = 'font-size:12px;padding:2px 10px;height:auto';
+					btn.textContent   = page.label.length > 20 ? page.label.substring( 0, 20 ) + '…' : page.label;
+					btn.addEventListener( 'click', function () { fill404Target( page.url ); } );
+					pages404List.appendChild( btn );
+				} );
+			} ).catch( function () {
+				load404PagesBtn.disabled    = false;
+				load404PagesBtn.textContent = '↓ Načíst stránky';
 			} );
 		} );
 	}

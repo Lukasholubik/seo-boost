@@ -167,6 +167,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</div>
 	</div>
 
+	<!-- Rychlé cíle pro 404 sekci -->
+	<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;background:#f6f7f7;border:1px solid #dcdcde;border-radius:4px;">
+		<span style="font-size:12px;color:#50575e;white-space:nowrap;font-weight:600"><?php esc_html_e( 'Cíl:', 'seo-boost' ); ?></span>
+		<button type="button" class="button seob-404-quick-target" data-url="/" style="font-size:12px;padding:2px 10px;height:auto">🏠 HP</button>
+		<button type="button" class="button seob-404-quick-target" data-url="/kontakt/" style="font-size:12px;padding:2px 10px;height:auto">/kontakt/</button>
+		<button type="button" class="button seob-404-quick-target" data-url="/blog/" style="font-size:12px;padding:2px 10px;height:auto">/blog/</button>
+		<button type="button" class="button seob-404-quick-target" data-url="/slovnik/" style="font-size:12px;padding:2px 10px;height:auto">/slovnik/</button>
+		<span id="seob-404-pages-list" style="display:flex;gap:4px;flex-wrap:wrap;"></span>
+		<button type="button" id="seob-404-load-pages" class="button" style="font-size:12px;padding:2px 10px;height:auto">↓ <?php esc_html_e( 'Načíst stránky', 'seo-boost' ); ?></button>
+		<span style="font-size:11px;color:#888;margin-left:4px;"><?php esc_html_e( '← vyplní cíl ve všech řádcích + bulk baru', 'seo-boost' ); ?></span>
+	</div>
+
 	<table class="wp-list-table widefat fixed striped">
 		<thead>
 			<tr>
