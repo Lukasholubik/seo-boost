@@ -100,6 +100,12 @@ class SEOB_Module_Manager {
 			'classes'     => [ 'SEOB_ContentDecay_Ajax' ],
 			'depends_on'  => [],
 		],
+		'keyword-bold' => [
+			'label'       => 'Zvýraznění KW (Keyword Bold)',
+			'description' => 'Automaticky obalí Focus KW (Rank Math) tagem <strong> v obsahu příspěvků – SEO relevance signál. Funguje v Gutenbergu (metabox) i plošně přes batch nástroj.',
+			'classes'     => [ 'SEOB_KeywordBold_Ajax', 'SEOB_KeywordBold_MetaBox' ],
+			'depends_on'  => [],
+		],
 	];
 
 	/**

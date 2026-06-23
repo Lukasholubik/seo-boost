@@ -93,6 +93,10 @@ class SEOB_Admin {
 			add_submenu_page( self::MENU_SLUG, 'Content Decay Monitor', 'Content Decay', self::CAPABILITY, 'seob-content-decay', [ $this, 'page_content_decay' ] );
 		}
 
+		if ( SEOB_Module_Manager::is_active( 'keyword-bold' ) ) {
+			add_submenu_page( self::MENU_SLUG, 'Zvýraznění KW', '🔡 Zvýraznění KW', self::CAPABILITY, 'seob-keyword-bold', [ $this, 'page_keyword_bold' ] );
+		}
+
 		// Stav systému a Nastavení zůstávají vždy dostupné – odsud se moduly znovu zapínají.
 		add_submenu_page( self::MENU_SLUG, 'Stav systému', 'Stav systému', self::CAPABILITY, 'seob-status',   [ $this, 'page_status' ] );
 		add_submenu_page( self::MENU_SLUG, 'Nastavení',    'Nastavení',    self::CAPABILITY, 'seob-settings', [ $this, 'page_settings' ] );
@@ -541,6 +545,15 @@ class SEOB_Admin {
 		}
 
 		$this->render_template( 'page-content-decay.php' );
+	}
+
+	public function page_keyword_bold(): void {
+		if ( ! SEOB_Module_Manager::is_active( 'keyword-bold' ) ) {
+			$this->render_disabled_module( SEOB_Module_Manager::MODULES['keyword-bold']['label'] );
+			return;
+		}
+
+		$this->render_template( 'page-keyword-bold.php' );
 	}
 
 	private function render_disabled_module( string $module_label ): void {
