@@ -7,6 +7,22 @@
 
 ## Záznamy
 
+### 2026-06-23 – v0.9.4 – Redirect Manager: výchozí cíl, rychlé cíle, bulk akce, 404 filtr, export
+
+**Co bylo přidáno:**
+
+1. **Výchozí cíl `/`** – pole "Přesměrovat na" má výchozí hodnotu `/` (HP)
+2. **Rychlé cíle** – tlačítka HP, /kontakt/, /blog/, /slovnik/ + "Načíst stránky webu" (AJAX `seob_redirect_get_pages`)
+3. **Hromadné akce** – checkboxy v obou tabulkách:
+   - Aktivní přesměrování: bulk smazání (`seob_redirect_bulk_delete`)
+   - 404 log: bulk přesměrování na zadaný cíl (`seob_redirect_bulk_save`) + bulk smazání
+4. **404 threshold filtr** – "Min. zásahů" input, klientský filtr + barevné odznaky 🔴≥50 🟡≥10
+5. **Export** – "Export CSV" a "Export .htaccess" (`seob_redirect_export`)
+
+**Upravené soubory:** `Redirects/Ajax.php`, `templates/admin/page-redirects.php`, `assets/admin/js/redirects.js`
+
+---
+
 ### 2026-06-22 – v0.9.1 – Kompletní penetrační audit + příprava na live
 
 **Co bylo uděláno:**

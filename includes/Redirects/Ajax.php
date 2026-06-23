@@ -12,11 +12,15 @@ class SEOB_Redirects_Ajax {
 	const NONCE_ACTION = 'seob_admin_nonce';
 
 	public function __construct() {
-		add_action( 'wp_ajax_seob_redirect_list',        [ $this, 'list_redirects' ] );
-		add_action( 'wp_ajax_seob_redirect_save',        [ $this, 'save_redirect' ] );
-		add_action( 'wp_ajax_seob_redirect_delete',      [ $this, 'delete_redirect' ] );
-		add_action( 'wp_ajax_seob_redirect_preview_csv', [ $this, 'preview_csv' ] );
-		add_action( 'wp_ajax_seob_redirect_import_csv',  [ $this, 'import_csv' ] );
+		add_action( 'wp_ajax_seob_redirect_list',         [ $this, 'list_redirects' ] );
+		add_action( 'wp_ajax_seob_redirect_save',         [ $this, 'save_redirect' ] );
+		add_action( 'wp_ajax_seob_redirect_delete',       [ $this, 'delete_redirect' ] );
+		add_action( 'wp_ajax_seob_redirect_preview_csv',  [ $this, 'preview_csv' ] );
+		add_action( 'wp_ajax_seob_redirect_import_csv',   [ $this, 'import_csv' ] );
+		add_action( 'wp_ajax_seob_redirect_bulk_delete',  [ $this, 'bulk_delete' ] );
+		add_action( 'wp_ajax_seob_redirect_bulk_save',    [ $this, 'bulk_save' ] );
+		add_action( 'wp_ajax_seob_redirect_export',       [ $this, 'export_redirects' ] );
+		add_action( 'wp_ajax_seob_redirect_get_pages',    [ $this, 'get_site_pages' ] );
 	}
 
 	private function check_request(): void {
@@ -138,6 +142,169 @@ class SEOB_Redirects_Ajax {
 		SEOB_Redirect_Manager::invalidate_cache();
 
 		wp_send_json_success();
+	}
+
+	// ── Hromadné akce ────────────────────────────────────────────────────────
+
+	/**
+	 * Hromadné smazání – přijme pole IDs, smaže každý záznam.
+	 * POST: ids[] – pole int
+	 */
+	public function bulk_delete(): void {
+		$this->check_request();
+
+		$raw_ids = isset( $_POST['ids'] ) ? (array) $_POST['ids'] : [];
+		$ids     = array_filter( array_map( 'absint', $raw_ids ) );
+
+		if ( empty( $ids ) ) {
+			wp_send_json_error( [ 'message' => __( 'Žádná ID nebyla zadána.', 'seo-boost' ) ], 400 );
+		}
+
+		global $wpdb;
+		$table       = SEOB_Database::links_table();
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->prepare(
+				"DELETE FROM {$table} WHERE id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				...$ids
+			)
+		);
+
+		SEOB_Redirect_Manager::invalidate_cache();
+
+		wp_send_json_success( [ 'deleted' => count( $ids ) ] );
+	}
+
+	/**
+	 * Hromadné nastavení cíle přesměrování pro více 404 záznamů.
+	 * POST: ids[] – pole int, redirect_to – string
+	 */
+	public function bulk_save(): void {
+		$this->check_request();
+
+		$raw_ids = isset( $_POST['ids'] ) ? (array) $_POST['ids'] : [];
+		$ids     = array_filter( array_map( 'absint', $raw_ids ) );
+
+		if ( empty( $ids ) ) {
+			wp_send_json_error( [ 'message' => __( 'Žádná ID nebyla zadána.', 'seo-boost' ) ], 400 );
+		}
+
+		$redirect_to = isset( $_POST['redirect_to'] ) ? wp_unslash( $_POST['redirect_to'] ) : '';
+		$target      = $this->validate_redirect_target( $redirect_to );
+
+		if ( null === $target ) {
+			wp_send_json_error( [ 'message' => __( 'Cílová adresa není platná.', 'seo-boost' ) ], 400 );
+		}
+
+		global $wpdb;
+		$table        = SEOB_Database::links_table();
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$saved        = 0;
+
+		foreach ( $ids as $id ) {
+			$result = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+				$table,
+				[ 'redirect_to' => $target, 'http_status' => 301 ],
+				[ 'id' => $id ],
+				[ '%s', '%d' ],
+				[ '%d' ]
+			);
+			if ( $result !== false ) {
+				$saved++;
+			}
+		}
+
+		SEOB_Redirect_Manager::invalidate_cache();
+
+		wp_send_json_success( [ 'saved' => $saved ] );
+	}
+
+	/**
+	 * Export aktivních přesměrování.
+	 * POST: format – 'csv' | 'htaccess'
+	 * Vrátí: { content: string, filename: string }
+	 */
+	public function export_redirects(): void {
+		$this->check_request();
+
+		$format = in_array( $_POST['format'] ?? '', [ 'csv', 'htaccess' ], true )
+			? $_POST['format']
+			: 'csv';
+
+		global $wpdb;
+		$table = SEOB_Database::links_table();
+
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			"SELECT target_url, redirect_to, http_status FROM {$table} WHERE redirect_to IS NOT NULL AND redirect_to != '' ORDER BY id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			ARRAY_A
+		);
+
+		if ( $format === 'htaccess' ) {
+			$lines   = [];
+			$lines[] = '# Přesměrování exportovaná z SEO Booster Pro – ' . gmdate( 'Y-m-d' );
+			$lines[] = 'RewriteEngine On';
+			$lines[] = '';
+
+			foreach ( $rows as $row ) {
+				$src    = ltrim( $row['target_url'], '/' );
+				$dst    = $row['redirect_to'];
+				$code   = (int) ( $row['http_status'] ?: 301 );
+				// Relativní cíl → absolutní URL pro .htaccess
+				if ( str_starts_with( $dst, '/' ) ) {
+					$dst = home_url( $dst );
+				}
+				$lines[] = 'RewriteRule ^' . addslashes( $src ) . '$ ' . $dst . ' [R=' . $code . ',L]';
+			}
+
+			$content  = implode( "\n", $lines );
+			$filename = 'redirects-' . gmdate( 'Y-m-d' ) . '.htaccess';
+		} else {
+			$lines   = [ 'Zdroj,Cíl,HTTP kód' ];
+			foreach ( $rows as $row ) {
+				$lines[] = '"' . str_replace( '"', '""', $row['target_url'] ) . '",'
+				         . '"' . str_replace( '"', '""', $row['redirect_to'] ) . '",'
+				         . ( (int) ( $row['http_status'] ?: 301 ) );
+			}
+			$content  = implode( "\n", $lines );
+			$filename = 'redirects-' . gmdate( 'Y-m-d' ) . '.csv';
+		}
+
+		wp_send_json_success( [
+			'content'  => $content,
+			'filename' => $filename,
+			'count'    => count( $rows ),
+		] );
+	}
+
+	/**
+	 * Vrátí seznam publikovaných stránek pro quick-fill v UI.
+	 */
+	public function get_site_pages(): void {
+		$this->check_request();
+
+		$pages = get_posts( [
+			'post_type'      => [ 'page', 'post' ],
+			'post_status'    => 'publish',
+			'posts_per_page' => 30,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+		] );
+
+		$result = [ [ 'label' => 'Úvodní stránka', 'url' => '/' ] ];
+
+		foreach ( $pages as $id ) {
+			$path = wp_make_link_relative( get_permalink( $id ) );
+			if ( $path && $path !== '/' ) {
+				$result[] = [
+					'label' => get_the_title( $id ),
+					'url'   => $path,
+				];
+			}
+		}
+
+		wp_send_json_success( $result );
 	}
 
 	// ── CSV Import / Preview ─────────────────────────────────────────────────
