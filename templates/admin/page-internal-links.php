@@ -61,7 +61,44 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</div>
 	</div>
 
-	<h2><?php esc_html_e( 'Osamocené stránky', 'seo-boost' ); ?></h2>
+	<!-- Hromadné vkládání odkazů -->
+	<div id="seob-links-bulk-bar" style="display:none;background:#f0f6fc;border:1px solid #c3d9ee;border-radius:4px;padding:10px 14px;margin-bottom:16px">
+		<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+			<span id="seob-links-bulk-count" style="font-size:13px;font-weight:600;color:#1d2327"></span>
+			<label style="font-size:13px">
+				<?php esc_html_e( 'Max. linků:', 'seo-boost' ); ?>
+				<select id="seob-links-bulk-max" style="margin-left:4px">
+					<option value="1">1</option>
+					<option value="2">2</option>
+					<option value="3" selected>3</option>
+					<option value="5">5</option>
+				</select>
+			</label>
+			<label style="font-size:13px;display:flex;align-items:center;gap:4px">
+				<input type="checkbox" id="seob-links-bulk-nofollow">
+				nofollow
+			</label>
+			<label style="font-size:13px;display:flex;align-items:center;gap:4px">
+				<input type="checkbox" id="seob-links-bulk-newwindow">
+				<?php esc_html_e( 'Nové okno', 'seo-boost' ); ?>
+			</label>
+			<button type="button" id="seob-links-bulk-btn" class="button button-primary" style="font-size:13px">
+				🔗 <?php esc_html_e( 'Vložit linky do vybraných', 'seo-boost' ); ?>
+			</button>
+			<button type="button" id="seob-links-bulk-clear" class="button" style="font-size:13px">
+				<?php esc_html_e( 'Zrušit výběr', 'seo-boost' ); ?>
+			</button>
+		</div>
+		<!-- Výsledky bulk operace -->
+		<div id="seob-links-bulk-results" style="display:none;margin-top:10px;max-height:200px;overflow-y:auto;font-size:12px;background:#fff;border:1px solid #dcdcde;border-radius:3px;padding:8px 10px"></div>
+	</div>
+
+	<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+		<h2 style="margin:0"><?php esc_html_e( 'Osamocené stránky', 'seo-boost' ); ?></h2>
+		<button type="button" id="seob-links-select-orphans" class="button" style="font-size:12px;display:none">
+			☑ <?php esc_html_e( 'Vybrat všechny orphany', 'seo-boost' ); ?>
+		</button>
+	</div>
 	<div id="seob-links-orphan-groups">
 		<p class="description"><?php esc_html_e( 'Zatím žádná data – spusťte reindex.', 'seo-boost' ); ?></p>
 	</div>

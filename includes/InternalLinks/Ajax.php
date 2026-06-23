@@ -12,13 +12,14 @@ class SEOB_InternalLinks_Ajax {
 	const NONCE_ACTION = 'seob_admin_nonce';
 
 	public function __construct() {
-		add_action( 'wp_ajax_seob_links_start', [ $this, 'start' ] );
-		add_action( 'wp_ajax_seob_links_batch', [ $this, 'batch' ] );
-		add_action( 'wp_ajax_seob_links_results', [ $this, 'results' ] );
-		add_action( 'wp_ajax_seob_links_history', [ $this, 'history' ] );
-		add_action( 'wp_ajax_seob_links_active', [ $this, 'active' ] );
-		add_action( 'wp_ajax_seob_links_find',   [ $this, 'find' ] );
-		add_action( 'wp_ajax_seob_links_insert', [ $this, 'insert' ] );
+		add_action( 'wp_ajax_seob_links_start',        [ $this, 'start' ] );
+		add_action( 'wp_ajax_seob_links_batch',        [ $this, 'batch' ] );
+		add_action( 'wp_ajax_seob_links_results',      [ $this, 'results' ] );
+		add_action( 'wp_ajax_seob_links_history',      [ $this, 'history' ] );
+		add_action( 'wp_ajax_seob_links_active',       [ $this, 'active' ] );
+		add_action( 'wp_ajax_seob_links_find',         [ $this, 'find' ] );
+		add_action( 'wp_ajax_seob_links_insert',       [ $this, 'insert' ] );
+		add_action( 'wp_ajax_seob_links_bulk_insert',  [ $this, 'bulk_insert' ] );
 	}
 
 	private function check_request(): void {
@@ -182,5 +183,66 @@ class SEOB_InternalLinks_Ajax {
 
 		$result['is_elementor'] = false;
 		wp_send_json_success( $result );
+	}
+
+	/**
+	 * Hromadné vložení interních odkazů pro více příspěvků najednou.
+	 * POST: post_ids[] – pole int, max_links – int (1-10), nofollow, new_window
+	 */
+	public function bulk_insert(): void {
+		$this->check_request();
+
+		$raw_ids   = isset( $_POST['post_ids'] ) ? (array) $_POST['post_ids'] : [];
+		$post_ids  = array_values( array_slice( array_filter( array_map( 'absint', $raw_ids ) ), 0, 200 ) );
+
+		if ( empty( $post_ids ) ) {
+			wp_send_json_error( [ 'message' => __( 'Žádné příspěvky nebyly vybrány.', 'seo-boost' ) ], 400 );
+			return;
+		}
+
+		$max_links = max( 1, min( 10, absint( $_POST['max_links'] ?? 3 ) ) );
+		$options   = [
+			'new_window' => isset( $_POST['new_window'] ) && '1' === $_POST['new_window'],
+			'nofollow'   => isset( $_POST['nofollow'] )   && '1' === $_POST['nofollow'],
+		];
+
+		$inserter = new SEOB_InternalLinks_LinkInserter( $max_links );
+		$results  = [];
+
+		foreach ( $post_ids as $post_id ) {
+			$post = get_post( $post_id );
+			if ( ! $post ) {
+				$results[] = [ 'id' => $post_id, 'title' => 'ID ' . $post_id, 'inserted' => 0, 'skipped' => 0, 'error' => 'Post nenalezen.' ];
+				continue;
+			}
+
+			if ( $inserter->is_elementor( $post_id ) ) {
+				$results[] = [ 'id' => $post_id, 'title' => get_the_title( $post ), 'inserted' => 0, 'skipped' => 0, 'error' => 'Elementor stránka – přeskoč.' ];
+				continue;
+			}
+
+			$result = $inserter->insert( $post_id, [], $options );
+
+			if ( isset( $result['error'] ) ) {
+				$results[] = [ 'id' => $post_id, 'title' => get_the_title( $post ), 'inserted' => 0, 'skipped' => 0, 'error' => $result['error'] ];
+				continue;
+			}
+
+			$results[] = [
+				'id'       => $post_id,
+				'title'    => get_the_title( $post ),
+				'inserted' => count( $result['inserted'] ?? [] ),
+				'skipped'  => count( $result['skipped']  ?? [] ),
+				'error'    => null,
+			];
+		}
+
+		$total_inserted = array_sum( array_column( $results, 'inserted' ) );
+
+		wp_send_json_success( [
+			'results'        => $results,
+			'total_inserted' => $total_inserted,
+			'total_posts'    => count( $results ),
+		] );
 	}
 }

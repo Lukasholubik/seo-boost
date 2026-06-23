@@ -1,4 +1,4 @@
-( function () {
+﻿( function () {
 	'use strict';
 
 	if ( typeof seobData === 'undefined' ) {
@@ -20,8 +20,112 @@
 	var orphanGroupsEl      = document.getElementById( 'seob-links-orphan-groups' );
 	var pageGroupsEl        = document.getElementById( 'seob-links-page-groups' );
 
+	// Bulk bar refs
+	var bulkBar          = document.getElementById( 'seob-links-bulk-bar' );
+	var bulkCount        = document.getElementById( 'seob-links-bulk-count' );
+	var bulkMaxEl        = document.getElementById( 'seob-links-bulk-max' );
+	var bulkNofollowEl   = document.getElementById( 'seob-links-bulk-nofollow' );
+	var bulkNewWinEl     = document.getElementById( 'seob-links-bulk-newwindow' );
+	var bulkBtn          = document.getElementById( 'seob-links-bulk-btn' );
+	var bulkClearBtn     = document.getElementById( 'seob-links-bulk-clear' );
+	var bulkResultsEl    = document.getElementById( 'seob-links-bulk-results' );
+	var selectOrphansBtn = document.getElementById( 'seob-links-select-orphans' );
+
 	if ( ! runBtn || ! orphanGroupsEl || ! pageGroupsEl ) {
 		return;
+	}
+
+	// ── Bulk výběr a akce ────────────────────────────────────────────────────
+
+	function getCheckedIds() {
+		return Array.from( document.querySelectorAll( '.seob-links-row-check:checked' ) )
+			.map( function ( cb ) { return parseInt( cb.dataset.id, 10 ); } );
+	}
+
+	function updateBulkBar() {
+		var ids = getCheckedIds();
+		if ( ids.length > 0 ) {
+			bulkBar.style.display = '';
+			bulkCount.textContent = 'Vybráno: ' + ids.length + ' stránek';
+		} else {
+			bulkBar.style.display = 'none';
+			bulkResultsEl.style.display = 'none';
+		}
+	}
+
+	function esc( s ) {
+		var d = document.createElement( 'div' );
+		d.textContent = String( s );
+		return d.innerHTML;
+	}
+
+	if ( bulkBtn ) {
+		bulkBtn.addEventListener( 'click', function () {
+			var ids = getCheckedIds();
+			if ( ! ids.length ) { return; }
+
+			bulkBtn.disabled    = true;
+			bulkBtn.textContent = '⏳ Vkládám…';
+			bulkResultsEl.style.display = 'none';
+
+			var fd = new FormData();
+			fd.append( 'action', 'seob_links_bulk_insert' );
+			fd.append( 'nonce', seobData.nonce );
+			fd.append( 'max_links', bulkMaxEl ? bulkMaxEl.value : '3' );
+			fd.append( 'nofollow',   bulkNofollowEl && bulkNofollowEl.checked ? '1' : '0' );
+			fd.append( 'new_window', bulkNewWinEl   && bulkNewWinEl.checked   ? '1' : '0' );
+			ids.forEach( function ( id ) { fd.append( 'post_ids[]', id ); } );
+
+			fetch( seobData.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: fd } )
+				.then( function ( r ) { return r.json(); } )
+				.then( function ( d ) {
+					bulkBtn.disabled    = false;
+					bulkBtn.textContent = '🔗 Vložit linky do vybraných';
+
+					if ( ! d.success ) {
+						bulkResultsEl.innerHTML = '<span style="color:#d63638">✗ ' + esc( d.data && d.data.message ? d.data.message : 'Chyba.' ) + '</span>';
+						bulkResultsEl.style.display = '';
+						return;
+					}
+
+					var html = '<strong>✅ Hotovo: vloženo ' + d.data.total_inserted + ' odkazů do ' + d.data.total_posts + ' stránek</strong><ul style="margin:6px 0 0 16px;padding:0">';
+					d.data.results.forEach( function ( r ) {
+						var icon = r.error ? '✗' : ( r.inserted > 0 ? '✓' : '—' );
+						var color = r.error ? '#d63638' : ( r.inserted > 0 ? '#2d7738' : '#646970' );
+						html += '<li style="color:' + color + '">' + icon + ' ' + esc( r.title ) + ': ' +
+							( r.error ? esc( r.error ) : r.inserted + ' vloženo, ' + r.skipped + ' přeskočeno' ) + '</li>';
+					} );
+					html += '</ul>';
+
+					bulkResultsEl.innerHTML    = html;
+					bulkResultsEl.style.display = '';
+
+					// Obnovit výsledky po vložení
+					setTimeout( function () { loadResults(); }, 500 );
+				} )
+				.catch( function () {
+					bulkBtn.disabled    = false;
+					bulkBtn.textContent = '🔗 Vložit linky do vybraných';
+					bulkResultsEl.innerHTML = '<span style="color:#d63638">✗ Chyba sítě.</span>';
+					bulkResultsEl.style.display = '';
+				} );
+		} );
+	}
+
+	if ( bulkClearBtn ) {
+		bulkClearBtn.addEventListener( 'click', function () {
+			document.querySelectorAll( '.seob-links-row-check' ).forEach( function ( cb ) { cb.checked = false; } );
+			updateBulkBar();
+		} );
+	}
+
+	if ( selectOrphansBtn ) {
+		selectOrphansBtn.addEventListener( 'click', function () {
+			document.querySelectorAll( '.seob-links-row-check[data-is-orphan="1"]' ).forEach( function ( cb ) {
+				cb.checked = true;
+			} );
+			updateBulkBar();
+		} );
 	}
 
 	function ajax( action, data ) {
@@ -161,12 +265,12 @@
 			var g = createGroup(
 				group.label,
 				group.items.length + ' osamocených',
-				[ 'Stránka', 'Stav odchozích odkazů', 'Návrhy na prolinkování (odkázat z)' ]
+				[ '', 'Stránka', 'Stav odchozích odkazů', 'Návrhy na prolinkování (odkázat z)' ]
 			);
 
 			if ( ! group.items.length ) {
 				var emptyRow = document.createElement( 'tr' );
-				emptyRow.innerHTML = '<td colspan="3">Žádné osamocené stránky v této skupině.</td>';
+				emptyRow.innerHTML = '<td colspan="4">Žádné osamocené stránky v této skupině.</td>';
 				g.tbody.appendChild( emptyRow );
 			} else {
 				group.items.forEach( function ( page ) {
@@ -193,6 +297,7 @@
 					var tdSugg = document.createElement( 'td' );
 					renderSuggestions( tdSugg, page.suggestions );
 
+					tr.appendChild( makeCheckboxCell( page.id, true ) );
 					tr.appendChild( tdTitle );
 					tr.appendChild( linkStatusCell( page ) );
 					tr.appendChild( tdSugg );
@@ -202,6 +307,8 @@
 
 			orphanGroupsEl.appendChild( g.groupEl );
 		} );
+
+		if ( selectOrphansBtn ) { selectOrphansBtn.style.display = ''; }
 	}
 
 	function renderPageGroups( groups ) {
@@ -228,12 +335,12 @@
 			var g = createGroup(
 				group.label,
 				countText,
-				[ 'Stránka', 'Příchozí', 'Odchozí', 'Stav odkazů' ]
+				[ '', 'Stránka', 'Příchozí', 'Odchozí', 'Stav odkazů' ]
 			);
 
 			if ( ! group.items.length ) {
 				var emptyRow = document.createElement( 'tr' );
-				emptyRow.innerHTML = '<td colspan="4">Žádná data.</td>';
+				emptyRow.innerHTML = '<td colspan="5">Žádná data.</td>';
 				g.tbody.appendChild( emptyRow );
 			} else {
 				var statusOrder = { low: 0, high: 1, ok: 2 };
@@ -266,6 +373,7 @@
 					var tdOut = document.createElement( 'td' );
 					tdOut.textContent = page.outlinks;
 
+					tr.appendChild( makeCheckboxCell( page.id, false ) );
 					tr.appendChild( tdTitle );
 					tr.appendChild( tdIn );
 					tr.appendChild( tdOut );
