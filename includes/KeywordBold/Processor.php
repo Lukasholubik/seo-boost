@@ -49,8 +49,10 @@ class SEOB_KeywordBold_Processor {
 			return [ 'keywords' => [], 'occurrences' => 0, 'already_bolded' => false, 'content_preview' => '' ];
 		}
 
-		$keywords         = $options['keywords'] ?? self::get_keywords( $post_id, $options['use_secondary'] ?? true );
-		$max_occurrences  = max( 1, min( 5, (int) ( $options['max_occurrences'] ?? 1 ) ) );
+		$keywords        = ! empty( $options['keywords'] )
+			? $options['keywords']
+			: self::get_keywords( $post_id, $options['use_secondary'] ?? true );
+		$max_occurrences = max( 1, min( 5, (int) ( $options['max_occurrences'] ?? 1 ) ) );
 
 		if ( empty( $keywords ) ) {
 			return [ 'keywords' => [], 'occurrences' => 0, 'already_bolded' => false, 'content_preview' => '' ];
@@ -78,7 +80,9 @@ class SEOB_KeywordBold_Processor {
 			return [ 'success' => false, 'occurrences' => 0, 'keywords' => [], 'message' => 'Post nenalezen.' ];
 		}
 
-		$keywords        = $options['keywords'] ?? self::get_keywords( $post_id, $options['use_secondary'] ?? true );
+		$keywords        = ! empty( $options['keywords'] )
+			? $options['keywords']
+			: self::get_keywords( $post_id, $options['use_secondary'] ?? true );
 		$max_occurrences = max( 1, min( 5, (int) ( $options['max_occurrences'] ?? 1 ) ) );
 		$overwrite       = (bool) ( $options['overwrite'] ?? false );
 
