@@ -99,9 +99,12 @@ class SEOB_KeywordBold_Ajax {
 		$this->check();
 
 		$post_type = sanitize_key( $_POST['post_type'] ?? 'post' );
+		$only_new  = ! empty( $_POST['only_new'] );
+		$limit     = min( 50, max( 5, absint( $_POST['preview_limit'] ?? 20 ) ) );
+		$offset    = absint( $_POST['preview_offset'] ?? 0 );
 		$options   = $this->parse_options();
 
-		$posts = $this->get_posts( $post_type, 5 );
+		$posts = $this->get_posts( $post_type, $limit, $offset, $only_new );
 		$items = [];
 
 		foreach ( $posts as $post_id ) {
@@ -116,9 +119,15 @@ class SEOB_KeywordBold_Ajax {
 			];
 		}
 
-		$total = $this->count_posts( $post_type );
+		$total = $this->count_posts( $post_type, $only_new );
 
-		wp_send_json_success( [ 'items' => $items, 'total' => $total ] );
+		wp_send_json_success( [
+			'items'        => $items,
+			'total'        => $total,
+			'offset'       => $offset,
+			'next_offset'  => $offset + count( $posts ),
+			'has_more'     => ( $offset + count( $posts ) ) < $total,
+		] );
 	}
 
 	// ── Batch zpracování ──────────────────────────────────────────────────────
@@ -129,9 +138,10 @@ class SEOB_KeywordBold_Ajax {
 		$post_type = sanitize_key( $_POST['post_type'] ?? 'post' );
 		$offset    = absint( $_POST['offset'] ?? 0 );
 		$batch_sz  = min( 20, max( 1, absint( $_POST['batch_size'] ?? 10 ) ) );
+		$only_new  = ! empty( $_POST['only_new'] );
 		$options   = $this->parse_options();
 
-		$posts   = $this->get_posts( $post_type, $batch_sz, $offset );
+		$posts   = $this->get_posts( $post_type, $batch_sz, $offset, $only_new );
 		$results = [];
 
 		foreach ( $posts as $post_id ) {
@@ -146,7 +156,7 @@ class SEOB_KeywordBold_Ajax {
 			];
 		}
 
-		$total      = $this->count_posts( $post_type );
+		$total      = $this->count_posts( $post_type, $only_new );
 		$next_offset = $offset + count( $posts );
 		$done        = $next_offset >= $total;
 
@@ -241,8 +251,8 @@ class SEOB_KeywordBold_Ajax {
 		return array_values( array_filter( array_map( 'trim', explode( ',', $raw ) ) ) );
 	}
 
-	private function get_posts( string $post_type, int $limit, int $offset = 0 ): array {
-		return get_posts( [
+	private function get_posts( string $post_type, int $limit, int $offset = 0, bool $only_new = false ): array {
+		$args = [
 			'post_type'      => $post_type,
 			'post_status'    => 'publish',
 			'posts_per_page' => $limit,
@@ -250,10 +260,31 @@ class SEOB_KeywordBold_Ajax {
 			'fields'         => 'ids',
 			'orderby'        => 'date',
 			'order'          => 'DESC',
-		] );
+		];
+		if ( $only_new ) {
+			$args['meta_query'] = [ // phpcs:ignore WordPress.DB.SlowDBQuery
+				[
+					'key'     => '_seob_kw_bold_applied',
+					'compare' => 'NOT EXISTS',
+				],
+			];
+		}
+		return get_posts( $args );
 	}
 
-	private function count_posts( string $post_type ): int {
+	private function count_posts( string $post_type, bool $only_new = false ): int {
+		if ( $only_new ) {
+			$q = new WP_Query( [
+				'post_type'      => $post_type,
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery
+					[ 'key' => '_seob_kw_bold_applied', 'compare' => 'NOT EXISTS' ],
+				],
+			] );
+			return (int) $q->found_posts;
+		}
 		$counts = wp_count_posts( $post_type );
 		return (int) ( $counts->publish ?? 0 );
 	}

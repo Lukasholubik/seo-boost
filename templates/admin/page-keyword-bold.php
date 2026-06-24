@@ -18,7 +18,7 @@ unset( $post_types['attachment'] );
 	</p>
 
 	<!-- Nastavení -->
-	<div style="background:#fff;border:1px solid #dcdcde;border-radius:4px;padding:20px 24px;max-width:700px;margin-bottom:24px">
+	<div style="background:#fff;border:1px solid #dcdcde;border-radius:4px;padding:20px 24px;max-width:760px;margin-bottom:24px">
 		<h2 style="margin-top:0"><?php esc_html_e( 'Nastavení', 'seo-boost' ); ?></h2>
 		<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
 
@@ -42,6 +42,14 @@ unset( $post_types['attachment'] );
 				</select>
 			</label>
 
+			<label style="font-size:13px">
+				<?php esc_html_e( 'Rozsah zpracování:', 'seo-boost' ); ?><br>
+				<select id="seob-kwb-filter-mode" style="margin-top:4px;min-width:220px">
+					<option value="all">Všechny příspěvky</option>
+					<option value="only_new">Jen nové (bez zvýraznění)</option>
+				</select>
+			</label>
+
 			<label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-top:20px">
 				<input type="checkbox" id="seob-kwb-secondary">
 				<?php esc_html_e( 'Zahrnout sekundární KW (Rank Math)', 'seo-boost' ); ?>
@@ -58,7 +66,7 @@ unset( $post_types['attachment'] );
 	<!-- Akce -->
 	<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
 		<button type="button" id="seob-kwb-preview-btn" class="button button-large">
-			🔍 <?php esc_html_e( 'Náhled (5 příspěvků)', 'seo-boost' ); ?>
+			🔍 <?php esc_html_e( 'Náhled (20 příspěvků)', 'seo-boost' ); ?>
 		</button>
 		<button type="button" id="seob-kwb-batch-btn" class="button button-primary button-large" disabled>
 			✦ <?php esc_html_e( 'Spustit zvýraznění', 'seo-boost' ); ?>
@@ -81,24 +89,37 @@ unset( $post_types['attachment'] );
 	</div>
 
 	<!-- Náhled tabulka -->
-	<div id="seob-kwb-preview-section" style="display:none;max-width:900px">
-		<h2><?php esc_html_e( 'Náhled', 'seo-boost' ); ?></h2>
+	<div id="seob-kwb-preview-section" style="display:none;max-width:960px">
+		<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+			<h2 style="margin:0"><?php esc_html_e( 'Náhled', 'seo-boost' ); ?></h2>
+			<span style="font-size:12px;color:#50575e">Filtr:</span>
+			<span class="seob-kwb-tab seob-kwb-tab--active" data-filter="all">Vše</span>
+			<span class="seob-kwb-tab" data-filter="not_found">Bez nálezu (0×)</span>
+			<span class="seob-kwb-tab" data-filter="waiting">Čeká</span>
+			<span class="seob-kwb-tab" data-filter="bolded">Již zvýrazněno</span>
+			<span class="seob-kwb-tab" data-filter="no_kw">Bez KW</span>
+		</div>
 		<table class="wp-list-table widefat fixed striped">
 			<thead>
 				<tr>
 					<th><?php esc_html_e( 'Příspěvek', 'seo-boost' ); ?></th>
 					<th style="width:220px"><?php esc_html_e( 'Focus KW', 'seo-boost' ); ?></th>
 					<th style="width:110px"><?php esc_html_e( 'Nalezeno', 'seo-boost' ); ?></th>
-					<th style="width:100px"><?php esc_html_e( 'Stav', 'seo-boost' ); ?></th>
+					<th style="width:140px"><?php esc_html_e( 'Stav', 'seo-boost' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="seob-kwb-preview-body"></tbody>
 		</table>
-		<p id="seob-kwb-preview-total" style="font-size:13px;color:#50575e;margin-top:8px"></p>
+		<div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+			<p id="seob-kwb-preview-total" style="font-size:13px;color:#50575e;margin:0"></p>
+			<button type="button" id="seob-kwb-preview-more" class="button" style="display:none">
+				Načíst dalších 20
+			</button>
+		</div>
 	</div>
 
 	<!-- Výsledky -->
-	<div id="seob-kwb-results-section" style="display:none;max-width:900px">
+	<div id="seob-kwb-results-section" style="display:none;max-width:960px">
 		<h2><?php esc_html_e( 'Výsledky', 'seo-boost' ); ?></h2>
 		<div id="seob-kwb-summary" style="padding:12px 16px;background:#edfaef;border-left:4px solid #00a32a;border-radius:2px;margin-bottom:12px;display:none"></div>
 		<table class="wp-list-table widefat fixed striped">
@@ -116,6 +137,16 @@ unset( $post_types['attachment'] );
 
 </div>
 
+<style>
+.seob-kwb-tab {
+	display:inline-block;padding:3px 10px;border-radius:3px;font-size:12px;
+	cursor:pointer;background:#f0f0f1;color:#50575e;border:1px solid #dcdcde;
+}
+.seob-kwb-tab--active { background:#2271b1;color:#fff;border-color:#2271b1; }
+.seob-kwb-tab:hover:not(.seob-kwb-tab--active) { background:#e0e0e0; }
+#seob-kwb-preview-body tr[data-hidden="1"] { display:none; }
+</style>
+
 <script>
 ( function () {
 	'use strict';
@@ -123,27 +154,31 @@ unset( $post_types['attachment'] );
 	var ajaxUrl  = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
 	var nonce    = '<?php echo esc_js( wp_create_nonce( 'seob_admin_nonce' ) ); ?>';
 
-	var postTypeEl = document.getElementById( 'seob-kwb-post-type' );
-	var maxEl      = document.getElementById( 'seob-kwb-max' );
-	var secEl      = document.getElementById( 'seob-kwb-secondary' );
-	var overEl     = document.getElementById( 'seob-kwb-overwrite' );
-	var prevBtn    = document.getElementById( 'seob-kwb-preview-btn' );
-	var batchBtn   = document.getElementById( 'seob-kwb-batch-btn' );
-	var stopBtn    = document.getElementById( 'seob-kwb-stop-btn' );
-	var undoBtn    = document.getElementById( 'seob-kwb-undo-btn' );
-	var undoStatus = document.getElementById( 'seob-kwb-undo-status' );
-	var progWrap   = document.getElementById( 'seob-kwb-progress-wrap' );
-	var progBar    = document.getElementById( 'seob-kwb-progress-bar' );
-	var progLabel  = document.getElementById( 'seob-kwb-progress-label' );
-	var prevSec    = document.getElementById( 'seob-kwb-preview-section' );
-	var prevBody   = document.getElementById( 'seob-kwb-preview-body' );
-	var prevTotal  = document.getElementById( 'seob-kwb-preview-total' );
-	var resSec     = document.getElementById( 'seob-kwb-results-section' );
-	var resBody    = document.getElementById( 'seob-kwb-results-body' );
-	var resSummary = document.getElementById( 'seob-kwb-summary' );
+	var postTypeEl   = document.getElementById( 'seob-kwb-post-type' );
+	var maxEl        = document.getElementById( 'seob-kwb-max' );
+	var secEl        = document.getElementById( 'seob-kwb-secondary' );
+	var overEl       = document.getElementById( 'seob-kwb-overwrite' );
+	var filterModeEl = document.getElementById( 'seob-kwb-filter-mode' );
+	var prevBtn      = document.getElementById( 'seob-kwb-preview-btn' );
+	var prevMoreBtn  = document.getElementById( 'seob-kwb-preview-more' );
+	var batchBtn     = document.getElementById( 'seob-kwb-batch-btn' );
+	var stopBtn      = document.getElementById( 'seob-kwb-stop-btn' );
+	var undoBtn      = document.getElementById( 'seob-kwb-undo-btn' );
+	var undoStatus   = document.getElementById( 'seob-kwb-undo-status' );
+	var progWrap     = document.getElementById( 'seob-kwb-progress-wrap' );
+	var progBar      = document.getElementById( 'seob-kwb-progress-bar' );
+	var progLabel    = document.getElementById( 'seob-kwb-progress-label' );
+	var prevSec      = document.getElementById( 'seob-kwb-preview-section' );
+	var prevBody     = document.getElementById( 'seob-kwb-preview-body' );
+	var prevTotal    = document.getElementById( 'seob-kwb-preview-total' );
+	var resSec       = document.getElementById( 'seob-kwb-results-section' );
+	var resBody      = document.getElementById( 'seob-kwb-results-body' );
+	var resSummary   = document.getElementById( 'seob-kwb-summary' );
 
-	var totalPosts  = 0;
-	var stopFlag    = false;
+	var totalPosts    = 0;
+	var previewOffset = 0;
+	var stopFlag      = false;
+	var activeFilter  = 'all';
 
 	function esc( s ) {
 		var d = document.createElement( 'div' );
@@ -158,6 +193,7 @@ unset( $post_types['attachment'] );
 			max_occurrences: maxEl.value,
 			use_secondary:   secEl.checked ? '1' : '',
 			overwrite:       overEl.checked ? '1' : '',
+			only_new:        filterModeEl.value === 'only_new' ? '1' : '',
 		};
 		return Object.assign( base, extra || {} );
 	}
@@ -170,32 +206,96 @@ unset( $post_types['attachment'] );
 			.then( function ( r ) { return r.json(); } );
 	}
 
+	// ── Filtr tabulky náhledu ─────────────────────────────────────────────────
+
+	document.querySelectorAll( '.seob-kwb-tab' ).forEach( function ( tab ) {
+		tab.addEventListener( 'click', function () {
+			document.querySelectorAll( '.seob-kwb-tab' ).forEach( function ( t ) {
+				t.classList.remove( 'seob-kwb-tab--active' );
+			} );
+			tab.classList.add( 'seob-kwb-tab--active' );
+			activeFilter = tab.dataset.filter;
+			applyPreviewFilter();
+		} );
+	} );
+
+	function rowFilterKey( tr ) {
+		return tr.dataset.filterKey || '';
+	}
+
+	function applyPreviewFilter() {
+		var rows = prevBody.querySelectorAll( 'tr' );
+		var visible = 0;
+		rows.forEach( function ( tr ) {
+			var key = rowFilterKey( tr );
+			var show = activeFilter === 'all' || key === activeFilter;
+			tr.setAttribute( 'data-hidden', show ? '0' : '1' );
+			if ( show ) visible++;
+		} );
+		updatePreviewCount( visible );
+	}
+
+	function updatePreviewCount( visible ) {
+		var allRows = prevBody.querySelectorAll( 'tr' ).length;
+		var suffix  = activeFilter !== 'all' ? ' (filtrováno: ' + visible + ')' : '';
+		prevTotal.textContent = 'Celkem příspěvků k zpracování: ' + totalPosts + suffix;
+	}
+
 	// ── Náhled ───────────────────────────────────────────────────────────────
 
-	prevBtn.addEventListener( 'click', function () {
-		prevBtn.disabled = true;
+	function loadPreview( append ) {
+		prevBtn.disabled    = true;
+		prevMoreBtn.style.display = 'none';
 		prevBtn.textContent = '⏳ Načítám…';
-		prevBody.innerHTML  = '';
-		prevSec.style.display = 'none';
 
-		postForm( 'seob_kwbold_batch_preview', getOpts() ).then( function ( d ) {
-			prevBtn.disabled = false;
-			prevBtn.textContent = '🔍 Náhled (5 příspěvků)';
+		postForm( 'seob_kwbold_batch_preview', getOpts( {
+			preview_limit:  20,
+			preview_offset: previewOffset,
+		} ) ).then( function ( d ) {
+			prevBtn.disabled    = false;
+			prevBtn.textContent = '🔍 Náhled (20 příspěvků)';
 
 			if ( ! d.success ) { alert( 'Chyba při načítání náhledu.' ); return; }
 
-			totalPosts = d.data.total;
+			if ( ! append ) {
+				prevBody.innerHTML = '';
+			}
+
+			totalPosts    = d.data.total;
+			previewOffset = d.data.next_offset;
+
 			d.data.items.forEach( function ( item ) {
 				var tr = document.createElement( 'tr' );
+
+				var filterKey;
+				if ( ! item.keywords.length ) {
+					filterKey = 'no_kw';
+				} else if ( item.already_bolded ) {
+					filterKey = 'bolded';
+				} else if ( item.occurrences === 0 ) {
+					filterKey = 'not_found';
+				} else {
+					filterKey = 'waiting';
+				}
+				tr.dataset.filterKey = filterKey;
+
 				var kwHtml = item.keywords.length
 					? item.keywords.map( function ( k ) { return '<code style="font-size:11px">' + esc( k ) + '</code>'; } ).join( ' ' )
 					: '<em style="color:#888">—</em>';
-				var found  = item.occurrences > 0
-					? '<span style="color:#2d7738">✓ ' + item.occurrences + '×</span>'
-					: '<span style="color:#888">0×</span>';
-				var state  = item.already_bolded
-					? '<span style="color:#e67e00">již zvýrazněno</span>'
-					: '<span style="color:#50575e">čeká</span>';
+
+				var foundColor = item.occurrences > 0 ? '#2d7738' : '#d63638';
+				var found = '<span style="color:' + foundColor + '">' + ( item.occurrences > 0 ? '✓ ' : '✗ ' ) + item.occurrences + '×</span>';
+
+				var state;
+				if ( ! item.keywords.length ) {
+					state = '<span style="color:#d63638">bez KW</span>';
+				} else if ( item.already_bolded ) {
+					state = '<span style="color:#e67e00">již zvýrazněno</span>';
+				} else if ( item.occurrences === 0 ) {
+					state = '<span style="color:#d63638">nenalezeno</span>';
+				} else {
+					state = '<span style="color:#50575e">čeká</span>';
+				}
 
 				tr.innerHTML =
 					'<td><a href="' + esc( item.edit_url ) + '" target="_blank">' + esc( item.title ) + '</a></td>' +
@@ -205,20 +305,39 @@ unset( $post_types['attachment'] );
 				prevBody.appendChild( tr );
 			} );
 
-			prevTotal.textContent = 'Celkem příspěvků k zpracování: ' + totalPosts;
 			prevSec.style.display = '';
-			batchBtn.disabled = false;
+			batchBtn.disabled     = false;
+
+			applyPreviewFilter();
+
+			if ( d.data.has_more ) {
+				prevMoreBtn.style.display = '';
+			}
 		} ).catch( function () {
-			prevBtn.disabled = false;
-			prevBtn.textContent = '🔍 Náhled (5 příspěvků)';
+			prevBtn.disabled    = false;
+			prevBtn.textContent = '🔍 Náhled (20 příspěvků)';
 			alert( 'Chyba sítě.' );
 		} );
+	}
+
+	prevBtn.addEventListener( 'click', function () {
+		previewOffset = 0;
+		activeFilter  = 'all';
+		document.querySelectorAll( '.seob-kwb-tab' ).forEach( function ( t ) {
+			t.classList.toggle( 'seob-kwb-tab--active', t.dataset.filter === 'all' );
+		} );
+		loadPreview( false );
+	} );
+
+	prevMoreBtn.addEventListener( 'click', function () {
+		loadPreview( true );
 	} );
 
 	// ── Batch ─────────────────────────────────────────────────────────────────
 
 	batchBtn.addEventListener( 'click', function () {
-		if ( ! confirm( 'Spustit zvýraznění KW pro všechny ' + totalPosts + ' příspěvků?' ) ) { return; }
+		var modeLabel = filterModeEl.value === 'only_new' ? 'nové (dosud nezpracované)' : 'všechny';
+		if ( ! confirm( 'Spustit zvýraznění KW pro ' + modeLabel + ' příspěvky (' + totalPosts + ' celkem)?' ) ) { return; }
 
 		stopFlag = false;
 		batchBtn.style.display = 'none';
@@ -230,13 +349,10 @@ unset( $post_types['attachment'] );
 		resSummary.style.display = 'none';
 
 		var offset = 0;
-		var totalOk = 0, totalSkip = 0, totalErr = 0;
+		var totalOk = 0, totalSkip = 0;
 
 		function runBatch() {
-			if ( stopFlag ) {
-				finish();
-				return;
-			}
+			if ( stopFlag ) { finish(); return; }
 
 			postForm( 'seob_kwbold_batch', getOpts( { offset: offset, batch_size: 10 } ) ).then( function ( d ) {
 				if ( ! d.success ) { finish(); return; }
@@ -264,11 +380,8 @@ unset( $post_types['attachment'] );
 				progBar.style.width   = Math.min( pct, 100 ) + '%';
 				progLabel.textContent = offset + ' / ' + totalPosts + ' zpracováno';
 
-				if ( data.done || stopFlag ) {
-					finish();
-				} else {
-					setTimeout( runBatch, 200 );
-				}
+				if ( data.done || stopFlag ) { finish(); }
+				else { setTimeout( runBatch, 200 ); }
 			} ).catch( finish );
 		}
 
@@ -332,9 +445,9 @@ unset( $post_types['attachment'] );
 						undoBtn.textContent = '↺ Odebrat zvýraznění (vše)';
 						if ( undoStatus ) {
 							undoStatus.innerHTML = '✓ Hotovo: odebráno zvýraznění z <strong>' + totalUndone + '</strong> příspěvků.';
-							undoStatus.style.background = '#edfaef';
+							undoStatus.style.background  = '#edfaef';
 							undoStatus.style.borderColor = '#00a32a';
-							undoStatus.style.display = '';
+							undoStatus.style.display     = '';
 						}
 					}
 				} ).catch( function () {
